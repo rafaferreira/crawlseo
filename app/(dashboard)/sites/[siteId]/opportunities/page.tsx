@@ -19,11 +19,15 @@ export default async function OpportunitiesPage({ params }: Props) {
 
   const site = await db.site.findUnique({
     where: { id: siteId },
-    select: { userId: true, domain: true, _count: { select: { keywords: true } } },
+    select: {
+      userId: true,
+      domain: true,
+      _count: { select: { keywords: true, bingWeekly: true } },
+    },
   });
   if (!site || site.userId !== session?.user?.id) redirect("/sites");
 
-  if (site._count.keywords === 0) {
+  if (site._count.keywords === 0 && site._count.bingWeekly === 0) {
     return (
       <div>
         <PageHeader

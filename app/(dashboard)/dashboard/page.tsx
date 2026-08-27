@@ -19,7 +19,7 @@ export default async function DashboardPage() {
       id: true,
       domain: true,
       gscProperty: true,
-      _count: { select: { keywords: true, crawls: true } },
+      _count: { select: { keywords: true, crawls: true, bingWeekly: true } },
     },
     orderBy: { domain: "asc" },
   });
@@ -27,7 +27,9 @@ export default async function DashboardPage() {
   // Onboarding state
   const hasSites = sites.length > 0;
   const hasGscConnected = sites.some((s) => s.gscProperty);
-  const hasSyncedData = sites.some((s) => s._count.keywords > 0);
+  const hasSyncedData = sites.some(
+    (s) => s._count.keywords > 0 || s._count.bingWeekly > 0
+  );
   const hasCrawled = sites.some((s) => s._count.crawls > 0);
   const firstSiteId = sites[0]?.id;
 
@@ -59,7 +61,7 @@ export default async function DashboardPage() {
 
   const siteCards = await Promise.all(
     sites.map(async (site) => {
-      if (site._count.keywords === 0) {
+      if (site._count.keywords === 0 && site._count.bingWeekly === 0) {
         return {
           site,
           metrics: null as Awaited<ReturnType<typeof getSitePeriodMetrics>> | null,
@@ -79,7 +81,7 @@ export default async function DashboardPage() {
       <PageHeader
         eyebrow="Workspace"
         title="Portfolio overview"
-        description={`${sites.length} site${sites.length === 1 ? "" : "s"} · last 28 days vs prior period`}
+        description={`${sites.length} site${sites.length === 1 ? "" : "s"} · every connected source · last 28 days vs prior period`}
         actions={
           <div className="flex items-center gap-3">
             <DataLagBadge />

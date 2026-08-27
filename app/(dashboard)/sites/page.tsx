@@ -22,6 +22,8 @@ export default async function SitesPage() {
           keywords: true,
           pages: true,
           crawls: true,
+          bingWeekly: true,
+          bingDaily: true,
         },
       },
     },
@@ -33,7 +35,7 @@ export default async function SitesPage() {
       <PageHeader
         eyebrow="Properties"
         title="Sites"
-        description="Connect and sync Google Search Console properties."
+        description="Connect and sync every source you have for a site."
         actions={<AddSiteModal />}
       />
 
@@ -59,7 +61,7 @@ export default async function SitesPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-2 border-t border-border/50 pt-4">
+                <div className="mt-5 grid grid-cols-4 gap-2 border-t border-border/50 pt-4">
                   <MiniStat
                     label="Keyword rows"
                     value={formatCompact(site._count.keywords)}
@@ -67,6 +69,12 @@ export default async function SitesPage() {
                   <MiniStat
                     label="Page rows"
                     value={formatCompact(site._count.pages)}
+                  />
+                  <MiniStat
+                    label="Bing rows"
+                    value={formatCompact(
+                      site._count.bingWeekly + site._count.bingDaily
+                    )}
                   />
                   <MiniStat
                     label="Crawls"

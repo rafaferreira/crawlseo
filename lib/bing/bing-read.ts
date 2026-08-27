@@ -75,22 +75,4 @@ export async function getBingDailyRows(siteId: string, start: Date, end: Date) {
     }));
 }
 
-/**
- * Match key for a page across engines. The Bing property and the Search
- * Console property are often different URL forms of the same site (measured:
- * https://periciatecnica.eng.br/ in Bing, https://www.periciatecnica.eng.br/
- * in Search Console), so host and trailing slash cannot be part of the key.
- */
-export function normaliseUrlKey(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname.replace(/\/+$/, "");
-    return `${parsed.hostname.replace(/^www\./, "")}${path}${parsed.search}`;
-  } catch {
-    return url.replace(/\/+$/, "");
-  }
-}
-
-export function normaliseQueryKey(query: string): string {
-  return query.trim().toLowerCase();
-}
+export { normaliseQueryKey, normaliseUrlKey } from "@/lib/sources/keys";

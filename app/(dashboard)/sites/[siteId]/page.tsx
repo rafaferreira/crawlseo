@@ -43,7 +43,7 @@ export default async function SiteOverviewPage({
       domain: true,
       gscProperty: true,
       bingSite: true,
-      _count: { select: { keywords: true } },
+      _count: { select: { keywords: true, bingWeekly: true } },
     },
   });
 
@@ -63,10 +63,13 @@ export default async function SiteOverviewPage({
     select: { perfScore: true, lcp: true, url: true },
   });
 
-  const opportunities =
-    site._count.keywords > 0
-      ? await getAllOpportunities(siteId)
-      : null;
+  // Any connected source counts as data: gating on Search Console alone would
+  // show an empty state to a site that only has Bing.
+  const hasData = site._count.keywords > 0 || site._count.bingWeekly > 0;
+
+  const opportunities = hasData
+    ? await getAllOpportunities(siteId)
+    : null;
 
   const [available, active] = await Promise.all([
     enabledSources(siteId),
@@ -123,11 +126,11 @@ export default async function SiteOverviewPage({
         ))}
       </div>
 
-      {site._count.keywords === 0 ? (
+      {!hasData ? (
         <EmptyState
           icon="↻"
-          title="Waiting for GSC data"
-          description="Run a sync to pull keywords, pages, and traffic for the last 28 days."
+          title="Waiting for data"
+          description="Run a sync to pull keywords, pages, and traffic from every connected source."
         />
       ) : (
         <div className="space-y-6">

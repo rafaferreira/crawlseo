@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mergeSourceRows } from "./merge";
-import { normaliseQueryKey, normaliseUrlKey } from "@/lib/bing/bing-read";
+import { normaliseQueryKey, normaliseUrlKey } from "./keys";
 
 describe("mergeSourceRows", () => {
   it("adds volume and weights position by impressions across sources", () => {
@@ -82,6 +82,37 @@ describe("cross-source keys", () => {
   it("keeps genuinely different paths apart", () => {
     expect(normaliseUrlKey("https://a.com/one")).not.toBe(
       normaliseUrlKey("https://a.com/two")
+    );
+  });
+
+  it("matches an accent whether it arrives composed or decomposed", () => {
+    const composed = "per\u00edcia"; // NFC
+    const decomposed = "peri\u0301cia"; // NFD, identical on screen
+    expect(composed).not.toBe(decomposed);
+    expect(normaliseQueryKey(composed)).toBe(normaliseQueryKey(decomposed));
+    expect(normaliseUrlKey(`https://a.com/${composed}`)).toBe(
+      normaliseUrlKey(`https://a.com/${decomposed}`)
+    );
+  });
+
+  it("matches a path whether or not the source percent-encoded it", () => {
+    expect(normaliseUrlKey("https://a.com/per%C3%ADcia")).toBe(
+      normaliseUrlKey("https://a.com/per\u00edcia")
+    );
+  });
+
+  it("survives a malformed escape instead of throwing", () => {
+    expect(() => normaliseUrlKey("https://a.com/100%")).not.toThrow();
+  });
+
+  it("collapses stray whitespace inside a query", () => {
+    expect(normaliseQueryKey("laudo   tecnico")).toBe("laudo tecnico");
+  });
+
+  it("still separates queries that only differ by accent", () => {
+    // People type both; each engine reports them as different searches.
+    expect(normaliseQueryKey("laudo tecnico")).not.toBe(
+      normaliseQueryKey("laudo t\u00e9cnico")
     );
   });
 });
