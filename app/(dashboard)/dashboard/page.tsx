@@ -123,7 +123,7 @@ export default async function DashboardPage() {
 
             {!metrics ? (
               <div className="mt-6 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-                Waiting for first GSC sync…
+                Waiting for first sync…
               </div>
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-3">

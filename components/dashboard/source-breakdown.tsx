@@ -62,7 +62,8 @@ export async function SourceBreakdown({
                 </p>
               </div>
               <p className="mt-1 font-data text-sm text-muted-foreground">
-                {formatCompact(row.metrics.clicks)} clicks ·{" "}
+                {formatCompact(row.metrics.clicks)}{" "}
+                {row.metrics.clicks === 1 ? "click" : "clicks"} ·{" "}
                 {formatCompact(row.metrics.impressions)} impressions ·{" "}
                 {row.metrics.uniqueKeywords.toLocaleString()} queries
               </p>
