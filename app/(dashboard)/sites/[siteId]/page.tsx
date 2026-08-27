@@ -159,7 +159,8 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
                   Bing · last 28 days
                 </p>
                 <p className="mt-1 font-heading text-xl font-semibold text-foreground">
-                  {formatCompact(bing.traffic.current.clicks)} clicks ·{" "}
+                  {formatCompact(bing.traffic.current.clicks)}{" "}
+                  {bing.traffic.current.clicks === 1 ? "click" : "clicks"} ·{" "}
                   {formatCompact(bing.traffic.current.impressions)} impressions
                 </p>
               </div>

@@ -130,7 +130,7 @@ export default async function CrawlPage({ params }: Props) {
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     bingbot fetched {bingCrawl.crawledPages.toLocaleString()}{" "}
-                    pages over {bingCrawl.days} days. Statuses are Bing&apos;s
+                    pages over {bingCrawl.days} days.{" "}Statuses are Bing&apos;s
                     running count of known URLs on {bingCrawl.latestDate}, not
                     per-day totals. Our own crawl found {latest.pagesFound}{" "}
                     pages.
@@ -237,8 +237,8 @@ export default async function CrawlPage({ params }: Props) {
 
 /** Movement of a snapshot counter across the window, for the card hint. */
 function formatMove(change: number): string {
-  if (change === 0) return "no change";
-  return `${change > 0 ? "+" : ""}${change.toLocaleString()} in window`;
+  if (change === 0) return "flat";
+  return `${change > 0 ? "+" : ""}${change.toLocaleString()}`;
 }
 
 function ScoreCard({
