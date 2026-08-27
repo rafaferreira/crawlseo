@@ -21,6 +21,7 @@ import {
   getDailyTraffic,
 } from "../lib/seo-metrics";
 import { getAllOpportunities } from "../lib/seo-opportunities";
+import { getBingTopRows, getEngineComparison } from "../lib/bing-metrics";
 import { runSiteCrawl } from "../lib/crawler/engine";
 
 import {
@@ -31,6 +32,8 @@ import {
   formatCrawlIssues,
   formatVitals,
   formatOpportunities,
+  formatBingRows,
+  formatEngineGap,
 } from "./formatters";
 
 // ---------------------------------------------------------------------------
@@ -344,6 +347,61 @@ server.tool(
   async ({ siteId }) => {
     const opportunities = await getAllOpportunities(siteId);
     return { content: [{ type: "text", text: formatOpportunities(opportunities) }] };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// 11. get_bing_keywords
+// ---------------------------------------------------------------------------
+
+server.tool(
+  "get_bing_keywords",
+  "Get top queries or pages as reported by Bing Webmaster Tools.",
+  {
+    siteId: z.string().describe("The site ID"),
+    kind: z
+      .enum(["query", "page"])
+      .optional()
+      .default("query")
+      .describe("Whether to return queries or pages (default query)"),
+    limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
+    days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+  },
+  async ({ siteId, kind, limit, days }) => {
+    const rows = await getBingTopRows(siteId, kind, days, limit);
+    return {
+      content: [
+        { type: "text", text: formatBingRows(rows, kind === "query" ? "queries" : "pages") },
+      ],
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// 12. get_engine_gap
+// ---------------------------------------------------------------------------
+
+server.tool(
+  "get_engine_gap",
+  "Compare the queries Google and Bing report for a site: which engine sees a query at all, and where each ranks it.",
+  {
+    siteId: z.string().describe("The site ID"),
+    days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),
+    limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
+    seenBy: z
+      .enum(["all", "both", "bing", "google"])
+      .optional()
+      .default("all")
+      .describe("Filter to queries only one engine reports (default all)"),
+  },
+  async ({ siteId, days, limit, seenBy }) => {
+    const { rows, counts } = await getEngineComparison(siteId, days);
+    const filtered = seenBy === "all" ? rows : rows.filter((row) => row.presence === seenBy);
+    return {
+      content: [
+        { type: "text", text: formatEngineGap(filtered.slice(0, limit), counts) },
+      ],
+    };
   }
 );
 

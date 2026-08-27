@@ -96,4 +96,30 @@ export const tools = [
       siteId: z.string().describe("The site ID"),
     },
   },
+  {
+    name: "get_bing_keywords",
+    description:
+      "Get top queries or pages as reported by Bing Webmaster Tools. Bing reports weekly buckets, which are collapsed into the requested window.",
+    schema: {
+      siteId: z.string().describe("The site ID"),
+      kind: z.enum(["query", "page"]).optional().default("query").describe("Queries or pages (default query)"),
+      limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
+      days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+    },
+  },
+  {
+    name: "get_engine_gap",
+    description:
+      "Compare the queries Google and Bing report for a site: which engine sees a query at all, and where each one ranks it. Volume is never summed across engines.",
+    schema: {
+      siteId: z.string().describe("The site ID"),
+      days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),
+      limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
+      seenBy: z
+        .enum(["all", "both", "bing", "google"])
+        .optional()
+        .default("all")
+        .describe("Filter to queries only one engine reports (default all)"),
+    },
+  },
 ] as const;

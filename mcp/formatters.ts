@@ -173,3 +173,64 @@ export function formatOpportunities(opportunities: any): string {
 
   return lines.join("\n");
 }
+
+export function formatBingRows(
+  rows: Array<{
+    key: string;
+    clicks: number;
+    impressions: number;
+    position: number | null;
+    ctr: number;
+  }>,
+  label: string
+): string {
+  if (rows.length === 0) return `No Bing ${label} found.`;
+
+  const headers = [label === "queries" ? "Query" : "Page", "Clicks", "Impressions", "Position", "CTR"];
+  const body = rows.map((row) => [
+    row.key.length > 50 ? row.key.slice(0, 47) + "..." : row.key,
+    num(row.clicks),
+    num(row.impressions),
+    row.position != null ? pos(row.position) : "-",
+    pct(row.ctr),
+  ]);
+
+  return (
+    `Top ${rows.length} Bing ${label} (weekly buckets collapsed into the window):\n\n` +
+    formatTable(headers, body)
+  );
+}
+
+export function formatEngineGap(
+  rows: Array<{
+    query: string;
+    presence: string;
+    googlePosition: number | null;
+    bingPosition: number | null;
+    googleImpressions: number;
+    bingImpressions: number;
+    gap: number | null;
+  }>,
+  counts: { both: number; google: number; bing: number }
+): string {
+  const summary =
+    `Query coverage: ${counts.both} on both engines, ${counts.bing} only Bing reports, ` +
+    `${counts.google} only Google reports.\n` +
+    `Volume is not comparable across engines and is never summed; ` +
+    `gap = Google position minus Bing position, so positive means Bing ranks it better.\n\n`;
+
+  if (rows.length === 0) return summary + "No queries to show.";
+
+  const headers = ["Query", "Seen by", "Google", "Bing", "Gap", "G impr", "B impr"];
+  const body = rows.map((row) => [
+    row.query.length > 45 ? row.query.slice(0, 42) + "..." : row.query,
+    row.presence,
+    row.googlePosition != null ? pos(row.googlePosition) : "-",
+    row.bingPosition != null ? pos(row.bingPosition) : "-",
+    row.gap != null ? (row.gap > 0 ? `+${row.gap.toFixed(1)}` : row.gap.toFixed(1)) : "-",
+    num(row.googleImpressions),
+    num(row.bingImpressions),
+  ]);
+
+  return summary + formatTable(headers, body);
+}
