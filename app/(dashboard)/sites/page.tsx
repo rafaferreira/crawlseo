@@ -61,9 +61,9 @@ export default async function SitesPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-4 gap-2 border-t border-border/50 pt-4">
+                <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/50 pt-4">
                   <MiniStat
-                    label="Keyword rows"
+                    label="Query rows"
                     value={formatCompact(site._count.keywords)}
                   />
                   <MiniStat
@@ -106,7 +106,7 @@ export default async function SitesPage() {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+      <p className="text-[10px] whitespace-nowrap uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </p>
       <p className="font-data mt-0.5 text-sm font-semibold text-foreground">
