@@ -92,6 +92,18 @@ export async function PUT(
     // at a different property would blend two properties' history - and page
     // URLs from both would normalise to the same key and count twice.
     const nextBingSite = bingSite === undefined ? undefined : bingSite || null;
+    // The picker only offers properties the account owns, but the endpoint is
+    // reachable directly: a value that is not a URL syncs nothing and looks
+    // exactly like a site with no Bing data.
+    if (nextBingSite !== null && nextBingSite !== undefined) {
+      const parsed = URL.parse?.(nextBingSite) ?? null;
+      if (!parsed || !/^https?:$/.test(parsed.protocol)) {
+        return Response.json(
+          { error: "bingSite must be an http(s) URL" },
+          { status: 400 }
+        );
+      }
+    }
     if (nextBingSite !== undefined && nextBingSite !== site.bingSite) {
       await db.$transaction([
         db.bingSearchWeekly.deleteMany({ where: { siteId } }),
