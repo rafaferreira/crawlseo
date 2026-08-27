@@ -108,7 +108,7 @@ export default async function BingPage({ params }: Props) {
                   Bing crawler
                 </h3>
                 <p className="text-atom-caption text-muted-foreground">
-                  Pages fetched over {crawl.days} days; every status is Bing's
+                  Pages fetched over {crawl.days} days; every status is Bing&apos;s
                   running count of known URLs on {crawl.latestDate}, with the
                   move since {crawl.firstDate}. Search Console has no
                   equivalent API.

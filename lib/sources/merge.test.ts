@@ -68,8 +68,18 @@ describe("mergeSourceRows", () => {
 describe("cross-source keys", () => {
   it("matches the same page across differing property URL forms", () => {
     // Measured: Bing knows periciatecnica.eng.br, Search Console knows www.
-    expect(normaliseUrlKey("https://www.periciatecnica.eng.br/servicos/")).toBe(
-      normaliseUrlKey("https://periciatecnica.eng.br/servicos")
+    expect(normaliseUrlKey("https://www.periciatecnica.eng.br/servicos")).toBe(
+      normaliseUrlKey("http://periciatecnica.eng.br/servicos")
+    );
+  });
+
+  it("keeps a trailing slash significant", () => {
+    // Measured on live data: Search Console reports
+    // /blog/rachadura-diagonal-recalque-fundacao and the same path with a
+    // trailing slash as two rows. Folding them would silently merge a
+    // duplicate that a Google-only install can see today.
+    expect(normaliseUrlKey("https://a.com/blog/x")).not.toBe(
+      normaliseUrlKey("https://a.com/blog/x/")
     );
   });
 

@@ -222,6 +222,27 @@ all, and where each one ranks it.
 each one separately. `GET /api/sites/<id>/traffic` returns every connected
 source added together unless `?source=` narrows it.
 
+## Behaviour changes in this release
+
+- **A period of N days is now exactly N days.** It used to span N+1 (a "last 28
+  days" window ran from 28 days ago through today inclusive), so every clicks,
+  impressions, position and keyword-count figure shifts slightly downwards on
+  upgrade. Measured on one site: 75 → 73 clicks, 6.4K → 6.1K impressions. The
+  exact span matters once a source reports in weekly buckets — a 29-day window
+  holds five of them whenever it starts on the bucket's weekday, which moved
+  Bing totals by a quarter one day in seven.
+- **`GET /api/sites/<id>/traffic` returns every connected source added
+  together**, and rejects an unrecognised `?source=` with 400 instead of
+  silently returning everything.
+- **`POST /api/sites/<id>/sync` is the sync entry point**, and syncs every
+  connected source. `POST /api/gsc/sync` still works and still syncs Search
+  Console only.
+- **Search Console rows are aggregated per query and date before being
+  stored.** Previously the device, country and page slices of one query-day
+  overwrote each other and only the last survived, so query-level clicks were
+  undercounted; existing rows are corrected by the next sync, for the window
+  that sync covers.
+
 ## Environment Variables
 
 | Variable | Required | Description |

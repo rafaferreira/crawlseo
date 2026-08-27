@@ -19,15 +19,20 @@ export function normaliseQueryKey(query: string): string {
 /**
  * A site's properties are often different URL forms of each other (measured:
  * Bing knows periciatecnica.eng.br, Search Console knows www.periciatecnica…),
- * so scheme, www and the trailing slash cannot be part of the key. Percent
- * encoding is decoded because only one source usually applies it. Path case is
- * kept: URLs are case sensitive and two spellings can be two real pages.
+ * so scheme and www cannot be part of the key. Percent encoding is decoded
+ * because only one source usually applies it.
+ *
+ * What stays significant: path case, because URLs are case sensitive, and the
+ * trailing slash, because sources report `/page` and `/page/` as two rows and
+ * they really are two URLs - folding them here would merge two rows a
+ * single-source install can see today, and hide exactly the duplicate the
+ * crawler exists to find.
  */
 export function normaliseUrlKey(url: string): string {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    let path = parsed.pathname.replace(/\/+$/, "");
+    let path = parsed.pathname;
     try {
       path = decodeURI(path);
     } catch {
@@ -35,6 +40,6 @@ export function normaliseUrlKey(url: string): string {
     }
     return `${host}${path.normalize("NFC")}${parsed.search}`;
   } catch {
-    return url.trim().replace(/\/+$/, "").toLowerCase();
+    return url.trim().toLowerCase();
   }
 }
