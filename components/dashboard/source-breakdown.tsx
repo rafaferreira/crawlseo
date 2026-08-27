@@ -44,7 +44,7 @@ export async function SourceBreakdown({
         )}
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-3 flex flex-wrap gap-3">
         {rows.map((row) => {
           const share =
             totalClicks > 0
@@ -53,7 +53,7 @@ export async function SourceBreakdown({
           return (
             <div
               key={row.id}
-              className="rounded-lg border border-border/50 bg-panel/80 px-3 py-2.5"
+              className="min-w-56 flex-1 rounded-lg border border-border/50 bg-panel/80 px-3 py-2.5"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-medium text-foreground">{row.label}</p>

@@ -5,6 +5,8 @@ import {
   normaliseQueryKey,
   normaliseUrlKey,
 } from "@/lib/bing/bing-read";
+import { syncBingDataForSite } from "@/lib/workers/bing-sync";
+import { formatCompact } from "@/lib/seo-metrics";
 import type { DataSource } from "./types";
 
 export const bingSource: DataSource = {
@@ -16,6 +18,17 @@ export const bingSource: DataSource = {
 
   async isEnabled(siteId: string) {
     return (await bingPropertyFor(siteId)) !== null;
+  },
+
+  async sync(userId, siteId) {
+    const result = await syncBingDataForSite(userId, siteId);
+    if (!result.success) return { ok: false, detail: result.error ?? "sync failed" };
+    return {
+      ok: true,
+      detail: `${formatCompact(result.daysUpserted)} days, ${formatCompact(
+        result.queriesUpserted + result.pagesUpserted
+      )} weekly rows`,
+    };
   },
 
   async queryRows(siteId, start, end) {

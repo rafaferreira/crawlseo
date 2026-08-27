@@ -27,6 +27,14 @@ export interface SourceDailyRow {
   impressions: number;
 }
 
+export interface SourceSyncResult {
+  ok: boolean;
+  /** Short human summary, e.g. "1.2k keywords, 900 pages". */
+  detail: string;
+  /** Set when the failure is an expired connection the user must re-approve. */
+  needsReauth?: boolean;
+}
+
 export interface DataSource {
   id: SourceId;
   label: string;
@@ -52,4 +60,10 @@ export interface DataSource {
    * UI can say so instead of implying precision it does not have.
    */
   windowCaveat?: string;
+  /**
+   * Pulls fresh data for the site. Declared here so one Sync button can fan
+   * out over whatever is connected instead of the UI growing a button per
+   * source. Sources that need no pull (a live API read) leave it undefined.
+   */
+  sync?(userId: string, siteId: string): Promise<SourceSyncResult>;
 }

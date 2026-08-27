@@ -32,10 +32,10 @@ export function SyncButton({
     setReauthRequired(false);
 
     try {
-      const response = await fetch("/api/gsc/sync", {
+      // One endpoint, every connected source.
+      const response = await fetch(`/api/sites/${siteId}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId }),
       });
 
       const data = await response.json();
@@ -51,11 +51,19 @@ export function SyncButton({
         return;
       }
 
+      const results = (data.results ?? []) as Array<{
+        label: string;
+        ok: boolean;
+        detail: string;
+      }>;
+      setError(results.some((result) => !result.ok));
       setMessage(
-        `Synced ${data.keywordsInserted ?? 0} keywords · ${data.pagesInserted ?? 0} pages`
+        results
+          .map((result) => `${result.label}: ${result.detail}`)
+          .join(" · ") || "Nothing to sync"
       );
       router.refresh();
-      setTimeout(() => setMessage(null), 4000);
+      setTimeout(() => setMessage(null), 8000);
     } catch {
       setError(true);
       setMessage("Sync failed");
@@ -72,7 +80,7 @@ export function SyncButton({
         className={cn(fullWidth && "w-full", className)}
         size="sm"
       >
-        {loading ? "Syncing…" : "Sync GSC"}
+        {loading ? "Syncing…" : "Sync"}
       </Button>
       {reauthRequired && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">

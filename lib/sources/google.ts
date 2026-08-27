@@ -1,5 +1,8 @@
 import { db } from "@/lib/db";
 import { normaliseQueryKey, normaliseUrlKey } from "@/lib/bing/bing-read";
+import { ReauthRequiredError } from "@/lib/google";
+import { syncGSCDataForSite } from "@/lib/workers/gsc-sync";
+import { formatCompact } from "@/lib/seo-metrics";
 import type { DataSource } from "./types";
 
 export const googleSource: DataSource = {
@@ -13,6 +16,25 @@ export const googleSource: DataSource = {
       select: { gscProperty: true },
     });
     return Boolean(site?.gscProperty);
+  },
+
+  async sync(userId, siteId) {
+    const result = await syncGSCDataForSite(userId, siteId);
+    if (!result.success) {
+      return {
+        ok: false,
+        detail: result.error ?? "sync failed",
+        // The worker turns the error into a string, so compare against the
+        // error's own message rather than guessing at the wording.
+        needsReauth: result.error === new ReauthRequiredError().message,
+      };
+    }
+    return {
+      ok: true,
+      detail: `${formatCompact(result.keywordsInserted)} keywords, ${formatCompact(
+        result.pagesInserted
+      )} pages`,
+    };
   },
 
   async queryRows(siteId, start, end) {
