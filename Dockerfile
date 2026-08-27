@@ -28,7 +28,9 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # running a second npm install under QEMU emulation (which crashes with SIGILL
 # on arm64). Only the CLI package and its engine binaries are needed for
 # `prisma migrate deploy` at container startup.
-RUN npm install --no-save --no-audit --no-fund --omit=dev prisma@6.19.3 && npm cache clean --force
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
