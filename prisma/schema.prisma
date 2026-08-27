@@ -171,7 +171,6 @@ model BingDaily {
 
 /// Bing's weekly grain: GetQueryStats and GetPageStats return the same contract
 /// in buckets ending on a Friday, so `kind` distinguishes them.
-/// avgClickPosition is null when Bing sent its -1 "no clicks" sentinel.
 model BingSearchWeekly {
   id                    String   @id @default(cuid())
   siteId                String

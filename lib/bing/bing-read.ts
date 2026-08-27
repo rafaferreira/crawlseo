@@ -31,7 +31,6 @@ export async function getBingWeeklyRows(
       clicks: true,
       impressions: true,
       avgImpressionPosition: true,
-      avgClickPosition: true,
     },
   });
 
