@@ -1,138 +1,41 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import {
-  fetchSearchAnalytics,
-  fetchPageAnalytics,
-  ReauthRequiredError,
-} from "@/lib/google";
-import { getDateRange, getDataLagDate } from "@/lib/date-utils";
+import { ReauthRequiredError } from "@/lib/google";
+import { syncGSCDataForSite } from "@/lib/workers/gsc-sync";
 
+/**
+ * Search Console only. Kept for callers that predate
+ * POST /api/sites/<id>/sync, which syncs every connected source.
+ *
+ * It delegates rather than repeating the upsert: the inline copy it used to
+ * carry never wrote page, device or country on update, so rows written here
+ * drifted from rows written by the worker.
+ */
 export async function POST(req: Request) {
   try {
     const session = await auth();
-
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { siteId } = (await req.json()) as { siteId: string };
+    const { siteId } = (await req.json()) as { siteId?: string };
+    if (!siteId) {
+      return Response.json({ error: "Missing siteId" }, { status: 400 });
+    }
 
-    // Verify site belongs to user
-    const site = await db.site.findUnique({
-      where: { id: siteId },
-      select: { userId: true, gscProperty: true },
-    });
-
-    if (!site || site.userId !== session.user.id) {
+    const result = await syncGSCDataForSite(session.user.id, siteId);
+    if (!result.success) {
+      const reauth = result.error === new ReauthRequiredError().message;
       return Response.json(
-        { error: "Site not found or unauthorized" },
-        { status: 404 }
+        { error: result.error, ...(reauth && { code: "REAUTH_REQUIRED" }) },
+        { status: reauth ? 401 : 400 }
       );
     }
 
-    if (!site.gscProperty) {
-      return Response.json(
-        { error: "Site does not have GSC property connected" },
-        { status: 400 }
-      );
-    }
-
-    // Fetch last 28 days of data — end at the data lag boundary (3 days ago)
-    // because Google's most recent 2-3 days are always incomplete.
-    const { start } = getDateRange(28);
-    const end = getDataLagDate();
-
-    const [keywords, pages] = await Promise.all([
-      fetchSearchAnalytics(
-        session.user.id,
-        site.gscProperty,
-        start,
-        end,
-        ["query", "page", "date", "device", "country"]
-      ),
-      fetchPageAnalytics(session.user.id, site.gscProperty, start, end),
-    ]);
-
-    // Insert/update keywords
-    for (const keyword of keywords) {
-      await db.keyword.upsert({
-        where: {
-          siteId_query_date: {
-            siteId,
-            query: keyword.query,
-            date: new Date(keyword.date),
-          },
-        },
-        create: {
-          siteId,
-          query: keyword.query,
-          date: new Date(keyword.date),
-          clicks: keyword.clicks,
-          impressions: keyword.impressions,
-          ctr: keyword.ctr,
-          position: keyword.position,
-          page: keyword.page,
-          device: keyword.device,
-          country: keyword.country,
-        },
-        update: {
-          clicks: keyword.clicks,
-          impressions: keyword.impressions,
-          ctr: keyword.ctr,
-          position: keyword.position,
-        },
-      });
-    }
-
-    // Insert/update pages
-    for (const page of pages) {
-      if (!page.page) continue;
-
-      await db.page.upsert({
-        where: {
-          siteId_url_date: {
-            siteId,
-            url: page.page,
-            date: new Date(page.date),
-          },
-        },
-        create: {
-          siteId,
-          url: page.page,
-          date: new Date(page.date),
-          clicks: page.clicks,
-          impressions: page.impressions,
-          ctr: page.ctr,
-          position: page.position,
-        },
-        update: {
-          clicks: page.clicks,
-          impressions: page.impressions,
-          ctr: page.ctr,
-          position: page.position,
-        },
-      });
-    }
-
-    return Response.json({
-      success: true,
-      keywordsInserted: keywords.length,
-      pagesInserted: pages.length,
-    });
+    return Response.json(result);
   } catch (error) {
-    if (error instanceof ReauthRequiredError) {
-      return Response.json(
-        { error: error.message, code: "REAUTH_REQUIRED" },
-        { status: 401 }
-      );
-    }
-
-    console.error("Error syncing GSC data:", error);
-
+    console.error("GSC sync error:", error);
     return Response.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to sync GSC data",
-      },
+      { error: error instanceof Error ? error.message : "Sync failed" },
       { status: 500 }
     );
   }

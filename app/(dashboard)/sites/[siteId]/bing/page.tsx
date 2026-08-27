@@ -8,7 +8,7 @@ import { EngineComparisonTable } from "@/components/bing/engine-comparison-table
 import {
   getBingCrawlSummary,
   getBingPeriodMetrics,
-  getBingTopRows,
+  getBingTopPages,
   getEngineComparison,
 } from "@/lib/bing-metrics";
 import { formatCompact, formatCtr } from "@/lib/seo-metrics";
@@ -60,7 +60,7 @@ export default async function BingPage({ params }: Props) {
     getBingPeriodMetrics(siteId, 28),
     getBingCrawlSummary(siteId, 28),
     getEngineComparison(siteId, COMPARISON_DAYS),
-    getBingTopRows(siteId, "page", COMPARISON_DAYS, 15),
+    getBingTopPages(siteId, COMPARISON_DAYS, 15),
   ]);
 
   const wideGaps = comparison.rows.filter(

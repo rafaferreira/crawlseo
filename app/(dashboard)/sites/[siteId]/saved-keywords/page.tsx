@@ -33,6 +33,10 @@ export default async function SavedKeywordsPage({ params }: Props) {
   const startDate = new Date(`${start}T00:00:00.000Z`);
   const endDate = new Date(`${end}T23:59:59.999Z`);
 
+  // Reads the whole window rather than filtering by the saved queries in SQL:
+  // rows are matched on a normalised key, so a WHERE on the raw query text
+  // would miss any spelling a source reports differently. Bounded by only
+  // running when the site has saved keywords at all.
   const keywordData =
     saved.length > 0
       ? await getKeywordRowsForRange(siteId, startDate, endDate)

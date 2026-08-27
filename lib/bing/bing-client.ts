@@ -54,7 +54,7 @@ export interface BingCrawlDay {
  * exactly the grain of the ApiKey table. It is stored in `encryptedLogin`;
  * `encryptedPassword` is unused (the model was shaped for DataForSEO's pair).
  */
-export async function getBingApiKey(userId: string): Promise<string> {
+async function getBingApiKey(userId: string): Promise<string> {
   const apiKey = await db.apiKey.findUnique({
     where: { userId_provider: { userId, provider: "bing" } },
   });
@@ -66,13 +66,22 @@ export async function getBingApiKey(userId: string): Promise<string> {
 // Base request
 // ---------------------------------------------------------------------------
 
+/**
+ * Bing accepts no date range, so every call returns the full history and a
+ * slow endpoint has no smaller version to fall back to. Without a deadline one
+ * hung request holds the whole sync open until the platform kills it.
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function bingGet<T>(
   apiKey: string,
   method: string,
   params: Record<string, string> = {}
 ): Promise<T> {
   const query = new URLSearchParams({ ...params, apikey: apiKey });
-  const response = await fetch(`${BING_API_BASE}/${method}?${query}`);
+  const response = await fetch(`${BING_API_BASE}/${method}?${query}`, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   const body = await response.text();
 
   if (!response.ok) {

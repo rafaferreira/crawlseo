@@ -55,10 +55,14 @@ export type DailyTraffic = {
  * quarter one day in seven.
  */
 export function parseRange(days: number) {
-  const { end } = getDateRange(days);
+  // A window shorter than a day has no meaning, and a negative one silently
+  // inverts start and end: every query then matches nothing and the caller
+  // gets an empty result that reads exactly like "this site has no data".
+  const span = Number.isFinite(days) ? Math.max(1, Math.trunc(days)) : 1;
+  const { end } = getDateRange(span);
   const endDate = new Date(`${end}T23:59:59.999Z`);
   const startDate = new Date(endDate);
-  startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+  startDate.setUTCDate(startDate.getUTCDate() - (span - 1));
   startDate.setUTCHours(0, 0, 0, 0);
   return { start: startDate, end: endDate };
 }
@@ -254,6 +258,45 @@ export async function getSitePeriodMetrics(
       avgCtr: calculatePercentChange(current.avgCtr, previous.avgCtr),
     },
   };
+}
+
+export type SourceTotals = {
+  id: SourceId;
+  label: string;
+  clicks: number;
+  impressions: number;
+  uniqueKeywords: number;
+};
+
+/**
+ * What each connected source contributed over the window.
+ *
+ * Deliberately narrower than calling getSitePeriodMetrics once per source: the
+ * breakdown needs volume and a query count, not positions and not a previous
+ * period, so it reads two datasets per source instead of six times two.
+ */
+export async function getSourceTotals(
+  siteId: string,
+  days = 28
+): Promise<SourceTotals[]> {
+  const range = parseRange(days);
+  const active = await resolveSources(siteId);
+
+  return Promise.all(
+    active.map(async (source) => {
+      const [traffic, queries] = await Promise.all([
+        source.dailyTraffic(siteId, range.start, range.end),
+        source.queryRows(siteId, range.start, range.end),
+      ]);
+      return {
+        id: source.id,
+        label: source.label,
+        clicks: traffic.reduce((sum, row) => sum + row.clicks, 0),
+        impressions: traffic.reduce((sum, row) => sum + row.impressions, 0),
+        uniqueKeywords: new Set(queries.map((row) => row.key)).size,
+      };
+    })
+  );
 }
 
 export function formatPosition(position: number): string {

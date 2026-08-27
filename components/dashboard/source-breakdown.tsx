@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { enabledSources } from "@/lib/sources";
-import { formatCompact, getSitePeriodMetrics } from "@/lib/seo-metrics";
+import { formatCompact, getSourceTotals } from "@/lib/seo-metrics";
 
 /**
  * What each connected source contributed to the combined numbers above.
@@ -15,18 +14,10 @@ export async function SourceBreakdown({
   days?: number;
   compareHref?: string;
 }) {
-  const sources = await enabledSources(siteId);
-  if (sources.length < 2) return null;
+  const rows = await getSourceTotals(siteId, days);
+  if (rows.length < 2) return null;
 
-  const rows = await Promise.all(
-    sources.map(async (source) => ({
-      id: source.id,
-      label: source.label,
-      metrics: (await getSitePeriodMetrics(siteId, days, [source.id])).current,
-    }))
-  );
-
-  const totalClicks = rows.reduce((sum, row) => sum + row.metrics.clicks, 0);
+  const totalClicks = rows.reduce((sum, row) => sum + row.clicks, 0);
 
   return (
     <div className="panel p-4">
@@ -48,7 +39,7 @@ export async function SourceBreakdown({
         {rows.map((row) => {
           const share =
             totalClicks > 0
-              ? Math.round((row.metrics.clicks / totalClicks) * 100)
+              ? Math.round((row.clicks / totalClicks) * 100)
               : 0;
           return (
             <div
@@ -62,10 +53,10 @@ export async function SourceBreakdown({
                 </p>
               </div>
               <p className="mt-1 font-data text-sm text-muted-foreground">
-                {formatCompact(row.metrics.clicks)}{" "}
-                {row.metrics.clicks === 1 ? "click" : "clicks"} ·{" "}
-                {formatCompact(row.metrics.impressions)} impressions ·{" "}
-                {row.metrics.uniqueKeywords.toLocaleString()} queries
+                {formatCompact(row.clicks)}{" "}
+                {row.clicks === 1 ? "click" : "clicks"} ·{" "}
+                {formatCompact(row.impressions)} impressions ·{" "}
+                {row.uniqueKeywords.toLocaleString()} queries
               </p>
             </div>
           );

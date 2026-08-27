@@ -7,7 +7,7 @@ import type { DataSource, SourceId } from "./types";
 export type { DataSource, SourceId, SourceRow, SourceDailyRow } from "./types";
 
 /** Every source the app knows how to read. Order is display order. */
-export const SOURCES: DataSource[] = [googleSource, bingSource];
+const SOURCES: DataSource[] = [googleSource, bingSource];
 
 /**
  * The sources actually configured for a site.
@@ -40,7 +40,14 @@ export async function resolveSources(
   siteId: string,
   filter?: SourceId | SourceId[] | null
 ): Promise<DataSource[]> {
-  const enabled = await enabledSources(siteId);
+  return pickSources(await enabledSources(siteId), filter);
+}
+
+/** The selection rule on its own, so it can be tested without a database. */
+export function pickSources(
+  enabled: DataSource[],
+  filter?: SourceId | SourceId[] | null
+): DataSource[] {
   if (!filter) return enabled;
 
   const wanted = Array.isArray(filter) ? filter : [filter];
@@ -73,6 +80,8 @@ export async function sourceScope(
   return {
     ids,
     showingAll,
+    /** Set when the filter named a source this site has not connected. */
+    unavailable: ids.length === 0 && requested ? requested : null,
     filter: {
       sources: available.map(({ id, label }) => ({ id, label })),
       active: showingAll ? "all" : (ids[0] ?? "all"),

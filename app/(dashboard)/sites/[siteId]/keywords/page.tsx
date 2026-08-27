@@ -49,7 +49,13 @@ export default async function KeywordsPage({ params, searchParams }: KeywordsPag
         }
       />
 
-      {keywords.length === 0 ? (
+      {sources.unavailable ? (
+        <EmptyState
+          icon="⊘"
+          title={`No ${sources.unavailable} data for this site`}
+          description="This site is not connected to that source. Switch the filter back, or connect it in Settings."
+        />
+      ) : keywords.length === 0 ? (
         <EmptyState
           icon="⌘"
           title="No keywords yet"

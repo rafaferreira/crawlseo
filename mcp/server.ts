@@ -169,8 +169,8 @@ server.tool(
   "Get top keywords for a site sorted by clicks.",
   {
     siteId: z.string().describe("The site ID"),
-    limit: z.number().optional().default(25).describe("Max keywords to return (default 25)"),
-    days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+    limit: z.number().int().positive().optional().default(25).describe("Max keywords to return (default 25)"),
+    days: z.number().int().positive().optional().default(28).describe("Lookback period in days (default 28)"),
     sources: sourcesParam,
   },
   async ({ siteId, limit, days, sources }) => {
@@ -192,8 +192,8 @@ server.tool(
   "Get top pages for a site sorted by clicks.",
   {
     siteId: z.string().describe("The site ID"),
-    limit: z.number().optional().default(25).describe("Max pages to return (default 25)"),
-    days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+    limit: z.number().int().positive().optional().default(25).describe("Max pages to return (default 25)"),
+    days: z.number().int().positive().optional().default(28).describe("Lookback period in days (default 28)"),
     sources: sourcesParam,
   },
   async ({ siteId, limit, days, sources }) => {
@@ -215,7 +215,7 @@ server.tool(
   "Get daily traffic data (clicks and impressions) for a site.",
   {
     siteId: z.string().describe("The site ID"),
-    days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),
+    days: z.number().int().positive().optional().default(90).describe("Lookback period in days (default 90)"),
     sources: sourcesParam,
   },
   async ({ siteId, days, sources }) => {
@@ -339,7 +339,7 @@ server.tool(
       .string()
       .optional()
       .describe("Filter by severity: CRITICAL, WARNING, or INFO"),
-    limit: z.number().optional().default(50).describe("Max issues to return (default 50)"),
+    limit: z.number().int().positive().optional().default(50).describe("Max issues to return (default 50)"),
   },
   async ({ crawlId, severity, limit }) => {
     const where: Prisma.CrawlIssueWhereInput = { crawlId };
@@ -372,7 +372,7 @@ server.tool(
   "Get Core Web Vitals reports for a site.",
   {
     siteId: z.string().describe("The site ID"),
-    limit: z.number().optional().default(10).describe("Max reports to return (default 10)"),
+    limit: z.number().int().positive().optional().default(10).describe("Max reports to return (default 10)"),
   },
   async ({ siteId, limit }) => {
     const vitals = await db.vitalsReport.findMany({
@@ -408,8 +408,8 @@ server.tool(
   "Compare the queries Google and Bing report for a site: which one sees a query at all, and where each ranks it. Volume is never summed across sources here.",
   {
     siteId: z.string().describe("The site ID"),
-    days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),
-    limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
+    days: z.number().int().positive().optional().default(90).describe("Lookback period in days (default 90)"),
+    limit: z.number().int().positive().optional().default(25).describe("Max rows to return (default 25)"),
     seenBy: z
       .enum(["all", "both", "bing", "google"])
       .optional()

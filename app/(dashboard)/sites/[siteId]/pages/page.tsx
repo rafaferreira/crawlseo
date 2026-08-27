@@ -48,7 +48,13 @@ export default async function PagesPage({ params, searchParams }: PagesPageProps
         }
       />
 
-      {pages.length === 0 ? (
+      {sources.unavailable ? (
+        <EmptyState
+          icon="⊘"
+          title={`No ${sources.unavailable} data for this site`}
+          description="This site is not connected to that source. Switch the filter back, or connect it in Settings."
+        />
+      ) : pages.length === 0 ? (
         <EmptyState
           icon="◫"
           title="No pages yet"

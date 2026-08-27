@@ -17,7 +17,7 @@ export async function bingPropertyFor(siteId: string): Promise<string | null> {
   return site?.bingSite ?? null;
 }
 
-export async function getBingWeeklyRows(
+async function getBingWeeklyRows(
   siteId: string,
   kind: "query" | "page",
   start: Date,

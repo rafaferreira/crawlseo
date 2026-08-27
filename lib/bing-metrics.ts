@@ -87,14 +87,13 @@ export async function getBingPeriodMetrics(
 }
 
 
-export async function getBingTopRows(
+export async function getBingTopPages(
   siteId: string,
-  kind: "query" | "page",
   days = 28,
   limit = 50
 ): Promise<BingRow[]> {
   const range = parseRange(days);
-  const rows = await getBingWindowRows(siteId, kind, range.start, range.end);
+  const rows = await getBingWindowRows(siteId, "page", range.start, range.end);
   return rows.slice(0, limit);
 }
 
