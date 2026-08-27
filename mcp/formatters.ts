@@ -174,33 +174,6 @@ export function formatOpportunities(opportunities: any): string {
   return lines.join("\n");
 }
 
-export function formatBingRows(
-  rows: Array<{
-    key: string;
-    clicks: number;
-    impressions: number;
-    position: number | null;
-    ctr: number;
-  }>,
-  label: string
-): string {
-  if (rows.length === 0) return `No Bing ${label} found.`;
-
-  const headers = [label === "queries" ? "Query" : "Page", "Clicks", "Impressions", "Position", "CTR"];
-  const body = rows.map((row) => [
-    row.key.length > 50 ? row.key.slice(0, 47) + "..." : row.key,
-    num(row.clicks),
-    num(row.impressions),
-    row.position != null ? pos(row.position) : "-",
-    pct(row.ctr),
-  ]);
-
-  return (
-    `Top ${rows.length} Bing ${label} (weekly buckets collapsed into the window):\n\n` +
-    formatTable(headers, body)
-  );
-}
-
 export function formatEngineGap(
   rows: Array<{
     query: string;

@@ -3,9 +3,12 @@ import { calculatePercentChange } from "@/lib/date-utils";
 import {
   getBingDailyRows,
   getBingWindowRows,
-  normaliseQueryKey,
 } from "@/lib/bing/bing-read";
-import { getTopKeywords, parseRange } from "@/lib/seo-metrics";
+import { summariseCrawlRows } from "@/lib/bing/crawl-summary";
+import {
+  normaliseQueryKey,
+} from "@/lib/sources/keys";
+import { getTopKeywords, parseRange, previousRange } from "@/lib/seo-metrics";
 
 /**
  * Bing-only reads, for the Bing vs Google page.
@@ -40,15 +43,6 @@ export type EngineRow = {
   /** Google position minus Bing position; positive means Bing ranks better. */
   gap: number | null;
 };
-
-function previousRange(days: number) {
-  const current = parseRange(days);
-  const start = new Date(current.start);
-  start.setUTCDate(start.getUTCDate() - days);
-  const end = new Date(current.start);
-  end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
-  return { start, end };
-}
 
 function totals(
   rows: Array<{ clicks: number; impressions: number }>
@@ -92,13 +86,6 @@ export async function getBingPeriodMetrics(
   };
 }
 
-export async function getBingDailyTraffic(
-  siteId: string,
-  days = 90
-): Promise<Array<{ date: string; clicks: number; impressions: number }>> {
-  const range = parseRange(days);
-  return getBingDailyRows(siteId, range.start, range.end);
-}
 
 export async function getBingTopRows(
   siteId: string,
@@ -131,36 +118,7 @@ export async function getBingCrawlSummary(siteId: string, days = 28) {
     orderBy: { date: "asc" },
   });
 
-  if (rows.length === 0) return null;
-
-  const first = rows[0];
-  const latest = rows[rows.length - 1];
-  const moved = (pick: (row: (typeof rows)[number]) => number | null) =>
-    (pick(latest) ?? 0) - (pick(first) ?? 0);
-
-  return {
-    firstDate: first.date.toISOString().slice(0, 10),
-    latestDate: latest.date.toISOString().slice(0, 10),
-    days: rows.length,
-    /** Summed: this one really is a daily count. */
-    crawledPages: rows.reduce((total, row) => total + (row.crawledPages ?? 0), 0),
-    /** Latest snapshot of URLs Bing knows in each state. */
-    inIndex: latest.inIndex ?? 0,
-    inLinks: latest.inLinks ?? 0,
-    code2xx: latest.code2xx ?? 0,
-    code301: latest.code301 ?? 0,
-    code302: latest.code302 ?? 0,
-    code4xx: latest.code4xx ?? 0,
-    code5xx: latest.code5xx ?? 0,
-    blockedByRobots: latest.blockedByRobots ?? 0,
-    crawlErrors: latest.crawlErrors ?? 0,
-    changes: {
-      inIndex: moved((row) => row.inIndex),
-      code301: moved((row) => row.code301),
-      code4xx: moved((row) => row.code4xx),
-      code5xx: moved((row) => row.code5xx),
-    },
-  };
+  return summariseCrawlRows(rows);
 }
 
 /**

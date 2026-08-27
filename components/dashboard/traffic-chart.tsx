@@ -14,7 +14,7 @@ import {
 interface TrafficChartProps {
   siteId: string;
   days?: number;
-  /** Narrow to one source; omitted means every connected source. */
+  /** Omitted means every connected source. */
   source?: string;
 }
 

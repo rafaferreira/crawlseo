@@ -5,7 +5,7 @@ import {
   getTopPages,
   getPageRowsForRange,
 } from "@/lib/seo-metrics";
-import { normaliseUrlKey } from "@/lib/bing/bing-read";
+import { normaliseUrlKey } from "@/lib/sources/keys";
 
 function range(days: number) {
   const { start, end } = getDateRange(days);

@@ -167,7 +167,6 @@ model BingDaily {
   site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@unique([siteId, date])
-  @@index([siteId, date])
 }
 
 /// Bing's weekly grain: GetQueryStats and GetPageStats return the same contract
@@ -182,7 +181,6 @@ model BingSearchWeekly {
   clicks                Int      @default(0)
   impressions           Int      @default(0)
   avgImpressionPosition Float?
-  avgClickPosition      Float?
 
   site                  Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 

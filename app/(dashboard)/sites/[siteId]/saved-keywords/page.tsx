@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getKeywordRowsForRange } from "@/lib/seo-metrics";
-import { normaliseQueryKey } from "@/lib/bing/bing-read";
+import { normaliseQueryKey } from "@/lib/sources/keys";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";

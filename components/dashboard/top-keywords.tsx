@@ -1,3 +1,4 @@
+import type { SourceId } from "@/lib/sources";
 import Link from "next/link";
 import { getTopKeywords } from "@/lib/seo-metrics";
 import {
@@ -9,8 +10,8 @@ import {
 interface TopKeywordsProps {
   siteId: string;
   days?: number;
-  /** Narrow to specific data sources; omitted means every connected one. */
-  sources?: string[];
+  /** Omitted means every connected source. */
+  sources?: SourceId[];
   limit?: number;
 }
 

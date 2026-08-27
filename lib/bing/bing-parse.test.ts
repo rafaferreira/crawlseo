@@ -40,7 +40,6 @@ describe("aggregateWeekly", () => {
         Clicks: 1,
         Impressions: 10,
         AvgImpressionPosition: 2,
-        AvgClickPosition: 2,
       },
       {
         Query: "laudo tecnico",
@@ -48,7 +47,6 @@ describe("aggregateWeekly", () => {
         Clicks: 2,
         Impressions: 30,
         AvgImpressionPosition: 6,
-        AvgClickPosition: 4,
       },
     ]);
 
@@ -67,7 +65,6 @@ describe("aggregateWeekly", () => {
         Clicks: 0,
         Impressions: 3,
         AvgImpressionPosition: 8,
-        AvgClickPosition: -1,
       },
       {
         Query: "perito",
@@ -75,12 +72,10 @@ describe("aggregateWeekly", () => {
         Clicks: 0,
         Impressions: 5,
         AvgImpressionPosition: 4,
-        AvgClickPosition: -1,
       },
     ]);
 
     expect(rows).toHaveLength(2);
-    expect(rows.every((row) => row.avgClickPosition === null)).toBe(true);
   });
 });
 
@@ -93,7 +88,6 @@ describe("collapseWeeks", () => {
         clicks: 1,
         impressions: 10,
         avgImpressionPosition: 1,
-        avgClickPosition: 1,
       },
       {
         key: "putney architects",
@@ -101,7 +95,6 @@ describe("collapseWeeks", () => {
         clicks: 3,
         impressions: 30,
         avgImpressionPosition: 5,
-        avgClickPosition: 2,
       },
     ]);
 
@@ -119,7 +112,6 @@ describe("collapseWeeks", () => {
         clicks: 0,
         impressions: 7,
         avgImpressionPosition: null,
-        avgClickPosition: null,
       },
     ]);
 

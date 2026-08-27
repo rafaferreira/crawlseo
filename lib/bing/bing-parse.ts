@@ -13,7 +13,6 @@ export interface BingSearchWeek {
   clicks: number;
   impressions: number;
   avgImpressionPosition: number | null;
-  avgClickPosition: number | null;
 }
 
 export interface RawQueryStats {
@@ -22,19 +21,29 @@ export interface RawQueryStats {
   Clicks: number;
   Impressions: number;
   AvgImpressionPosition?: number;
-  AvgClickPosition?: number;
 }
 
 /**
  * Bing serialises dates as .NET strings: `/Date(1747983600000-0700)/`.
- * The epoch is midnight in Bing's own (Pacific) timezone, so the UTC calendar
- * date of that instant is the day Bing means - 00:00 PT is 07:00/08:00 UTC,
- * still the same day. Formatting in server-local time would slide it.
+ *
+ * The epoch is midnight in the trailing offset's timezone, so the offset has
+ * to be added back before formatting. Bing's own offsets are negative, where
+ * reading the epoch as UTC happens to land on the right day anyway - but a
+ * positive offset puts local midnight before UTC midnight and would report
+ * the previous day, shifting every weekly bucket by one.
  */
 export function parseBingDate(value: string): string {
-  const match = /\/Date\((-?\d+)/.exec(value);
+  const match = /\/Date\((-?\d+)([+-]\d{4})?\)/.exec(value);
   if (!match) throw new Error(`Unparseable Bing date: ${value}`);
-  return new Date(Number(match[1])).toISOString().slice(0, 10);
+
+  const offsetMinutes = match[2]
+    ? (match[2][0] === "-" ? -1 : 1) *
+      (Number(match[2].slice(1, 3)) * 60 + Number(match[2].slice(3)))
+    : 0;
+
+  return new Date(Number(match[1]) + offsetMinutes * 60_000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 /**
@@ -53,7 +62,7 @@ export function normalisePosition(value: unknown): number | null {
 export function aggregateWeekly(rows: RawQueryStats[]): BingSearchWeek[] {
   const byKey = new Map<
     string,
-    BingSearchWeek & { impWeight: number; clickWeight: number }
+    BingSearchWeek & { impWeight: number }
   >();
 
   for (const row of rows) {
@@ -63,7 +72,6 @@ export function aggregateWeekly(rows: RawQueryStats[]): BingSearchWeek[] {
     const clicks = row.Clicks ?? 0;
     const impressions = row.Impressions ?? 0;
     const impPos = normalisePosition(row.AvgImpressionPosition);
-    const clickPos = normalisePosition(row.AvgClickPosition);
 
     const entry = byKey.get(id) ?? {
       key: row.Query,
@@ -71,9 +79,7 @@ export function aggregateWeekly(rows: RawQueryStats[]): BingSearchWeek[] {
       clicks: 0,
       impressions: 0,
       avgImpressionPosition: null,
-      avgClickPosition: null,
       impWeight: 0,
-      clickWeight: 0,
     };
 
     entry.clicks += clicks;
@@ -83,11 +89,6 @@ export function aggregateWeekly(rows: RawQueryStats[]): BingSearchWeek[] {
       entry.avgImpressionPosition =
         (entry.avgImpressionPosition ?? 0) + impPos * weight;
       entry.impWeight += weight;
-    }
-    if (clickPos !== null) {
-      const weight = Math.max(clicks, 1);
-      entry.avgClickPosition = (entry.avgClickPosition ?? 0) + clickPos * weight;
-      entry.clickWeight += weight;
     }
 
     byKey.set(id, entry);
@@ -101,10 +102,6 @@ export function aggregateWeekly(rows: RawQueryStats[]): BingSearchWeek[] {
     avgImpressionPosition:
       entry.avgImpressionPosition !== null && entry.impWeight > 0
         ? Number((entry.avgImpressionPosition / entry.impWeight).toFixed(2))
-        : null,
-    avgClickPosition:
-      entry.avgClickPosition !== null && entry.clickWeight > 0
-        ? Number((entry.avgClickPosition / entry.clickWeight).toFixed(2))
         : null,
   }));
 }

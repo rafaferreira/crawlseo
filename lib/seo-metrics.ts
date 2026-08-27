@@ -46,15 +46,24 @@ export type DailyTraffic = {
   impressions: number;
 };
 
+/**
+ * A window of exactly `days` calendar days, ending today.
+ *
+ * The span has to be exact because weekly sources are counted by how many of
+ * their bucket dates land inside it: a 29-day span holds four Fridays most of
+ * the time and five when it starts on one, which moved every Bing total by a
+ * quarter one day in seven.
+ */
 export function parseRange(days: number) {
-  const { start, end } = getDateRange(days);
-  return {
-    start: new Date(`${start}T00:00:00.000Z`),
-    end: new Date(`${end}T23:59:59.999Z`),
-  };
+  const { end } = getDateRange(days);
+  const endDate = new Date(`${end}T23:59:59.999Z`);
+  const startDate = new Date(endDate);
+  startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+  startDate.setUTCHours(0, 0, 0, 0);
+  return { start: startDate, end: endDate };
 }
 
-function previousRange(days: number) {
+export function previousRange(days: number) {
   const current = parseRange(days);
   const start = new Date(current.start);
   start.setUTCDate(start.getUTCDate() - days);
@@ -81,14 +90,11 @@ function weightedPosition(
   return weighted / weight;
 }
 
-async function gather<T>(
+function gather<T>(
   sources: DataSource[],
-  supplies: "queries" | "pages" | "traffic",
   read: (source: DataSource) => Promise<T[]>
 ): Promise<T[][]> {
-  return Promise.all(
-    sources.filter((source) => source.supplies[supplies]).map(read)
-  );
+  return Promise.all(sources.map(read));
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +109,7 @@ export async function getKeywordRowsForRange(
   sources?: SourceId[] | SourceId | null
 ): Promise<KeywordRow[]> {
   const active = await resolveSources(siteId, sources);
-  const batches = await gather(active, "queries", (source) =>
+  const batches = await gather(active, (source) =>
     source.queryRows(siteId, start, end)
   );
 
@@ -120,7 +126,7 @@ export async function getPageRowsForRange(
   sources?: SourceId[] | SourceId | null
 ): Promise<PageRow[]> {
   const active = await resolveSources(siteId, sources);
-  const batches = await gather(active, "pages", (source) =>
+  const batches = await gather(active, (source) =>
     source.pageRows(siteId, start, end)
   );
 
@@ -156,7 +162,7 @@ export async function getDailyTraffic(
 ): Promise<DailyTraffic[]> {
   const range = parseRange(days);
   const active = await resolveSources(siteId, sources);
-  const batches = await gather(active, "traffic", (source) =>
+  const batches = await gather(active, (source) =>
     source.dailyTraffic(siteId, range.start, range.end)
   );
 
@@ -195,13 +201,13 @@ export async function getSitePeriodMetrics(
     // Traffic rows carry the complete totals; query rows drop whatever a
     // source anonymises, so they only count distinct queries here.
     const [trafficBatches, pageBatches, queryBatches] = await Promise.all([
-      gather(active, "traffic", (source) =>
+      gather(active, (source) =>
         source.dailyTraffic(siteId, range.start, range.end)
       ),
-      gather(active, "pages", (source) =>
+      gather(active, (source) =>
         source.pageRows(siteId, range.start, range.end)
       ),
-      gather(active, "queries", (source) =>
+      gather(active, (source) =>
         source.queryRows(siteId, range.start, range.end)
       ),
     ]);
@@ -266,7 +272,9 @@ export function formatCompact(num: number): string {
 }
 
 export function positionBand(position: number): "top3" | "top10" | "top20" | "deep" {
-  if (position > 0 && position <= 3) return "top3";
+  // 0 means no source reported a rank for this row; it is not the top of page.
+  if (position <= 0) return "deep";
+  if (position <= 3) return "top3";
   if (position <= 10) return "top10";
   if (position <= 20) return "top20";
   return "deep";

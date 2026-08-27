@@ -11,6 +11,8 @@ export interface BingSyncResult {
   queriesUpserted: number;
   pagesUpserted: number;
   error?: string;
+  /** Endpoints that failed while the others were written. */
+  partial?: string[];
 }
 
 type DailyRow = {
@@ -70,12 +72,33 @@ export async function syncBingDataForSite(
       throw new Error("Site does not have a Bing Webmaster property connected");
     }
 
-    const [traffic, queries, pages, crawl] = await Promise.all([
+    // Four independent endpoints. Losing one should not throw away the three
+    // that answered: there is no date parameter, so a retry re-downloads the
+    // whole history again.
+    const settled = await Promise.allSettled([
       fetchBingTraffic(userId, site.bingSite),
       fetchBingSearchStats(userId, site.bingSite, "query"),
       fetchBingSearchStats(userId, site.bingSite, "page"),
       fetchBingCrawlStats(userId, site.bingSite),
     ]);
+    const [traffic, queries, pages, crawl] = settled.map((result) =>
+      result.status === "fulfilled" ? result.value : []
+    ) as [
+      Awaited<ReturnType<typeof fetchBingTraffic>>,
+      Awaited<ReturnType<typeof fetchBingSearchStats>>,
+      Awaited<ReturnType<typeof fetchBingSearchStats>>,
+      Awaited<ReturnType<typeof fetchBingCrawlStats>>,
+    ];
+    const failed = settled
+      .map((result, index) =>
+        result.status === "rejected"
+          ? ["traffic", "queries", "pages", "crawl"][index]
+          : null
+      )
+      .filter((name): name is string => name !== null);
+    if (failed.length === settled.length) {
+      throw new Error(`every Bing endpoint failed (${failed.join(", ")})`);
+    }
 
     console.log(
       `[Bing Sync] ${site.bingSite}: ${traffic.length} traffic days, ` +
@@ -126,7 +149,6 @@ export async function syncBingDataForSite(
           clicks: row.clicks,
           impressions: row.impressions,
           avgImpressionPosition: row.avgImpressionPosition,
-          avgClickPosition: row.avgClickPosition,
         };
         await db.bingSearchWeekly.upsert({
           where: {
@@ -155,30 +177,11 @@ export async function syncBingDataForSite(
       daysUpserted,
       queriesUpserted: counts.query,
       pagesUpserted: counts.page,
+      ...(failed.length > 0 && { partial: failed }),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error(`[Bing Sync] Error syncing site ${siteId}:`, message);
     return { success: false, ...empty, error: message };
   }
-}
-
-/** Syncs every site of a user that has a Bing property connected. */
-export async function syncAllUserBingSites(userId: string): Promise<
-  Array<{ siteId: string; domain: string; result: BingSyncResult }>
-> {
-  const sites = await db.site.findMany({
-    where: { userId, bingSite: { not: null } },
-    select: { id: true, domain: true },
-  });
-
-  const results = [];
-  for (const site of sites) {
-    results.push({
-      siteId: site.id,
-      domain: site.domain,
-      result: await syncBingDataForSite(userId, site.id),
-    });
-  }
-  return results;
 }

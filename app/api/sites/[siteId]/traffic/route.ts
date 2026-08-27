@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getDailyTraffic } from "@/lib/seo-metrics";
+import { isSourceId } from "@/lib/sources";
 
 export async function GET(
   _req: Request,
@@ -29,8 +30,10 @@ export async function GET(
     );
 
     const source = url.searchParams.get("source");
+    if (source !== null && !isSourceId(source)) {
+      return Response.json({ error: `Unknown source: ${source}` }, { status: 400 });
+    }
 
-    // Combined across every connected source, or narrowed to one.
     return Response.json(await getDailyTraffic(siteId, days, source));
   } catch (error) {
     console.error("Error fetching traffic:", error);

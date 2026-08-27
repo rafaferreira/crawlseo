@@ -22,20 +22,11 @@ export function SourceFilter({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  if (sources.length === 0) {
+  if (sources.length < 2) {
     return (
       <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-muted-foreground">
         <Layers className="size-3" />
-        <span>No source connected</span>
-      </div>
-    );
-  }
-
-  if (sources.length === 1) {
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-muted-foreground">
-        <Layers className="size-3" />
-        <span>{sources[0].label}</span>
+        <span>{sources[0]?.label ?? "No source connected"}</span>
       </div>
     );
   }

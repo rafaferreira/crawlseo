@@ -1,6 +1,8 @@
 {
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "functions": {
     "app/api/sites/[siteId]/crawl/route.ts": {
       "maxDuration": 60
@@ -12,6 +14,12 @@
       "maxDuration": 60
     },
     "app/api/gsc/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/sites/[siteId]/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/bing/sync/route.ts": {
       "maxDuration": 60
     }
   }

@@ -32,7 +32,6 @@ export function SyncButton({
     setReauthRequired(false);
 
     try {
-      // One endpoint, every connected source.
       const response = await fetch(`/api/sites/${siteId}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

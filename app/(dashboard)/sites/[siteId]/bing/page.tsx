@@ -12,6 +12,7 @@ import {
   getEngineComparison,
 } from "@/lib/bing-metrics";
 import { formatCompact, formatCtr } from "@/lib/seo-metrics";
+import { formatDeltaPercent } from "@/lib/format";
 
 interface Props {
   params: Promise<{ siteId: string }>;
@@ -79,7 +80,7 @@ export default async function BingPage({ params }: Props) {
           <Stat
             label="Bing clicks · 28d"
             value={formatCompact(traffic.current.clicks)}
-            hint={`${formatDelta(traffic.deltas.clicks)} vs previous 28d`}
+            hint={`${formatDeltaPercent(traffic.deltas.clicks)} vs previous 28d`}
           />
           <Stat
             label="Bing impressions · 28d"
@@ -164,11 +165,6 @@ export default async function BingPage({ params }: Props) {
       </div>
     </div>
   );
-}
-
-function formatDelta(value: number): string {
-  if (!Number.isFinite(value) || value === 0) return "no change";
-  return `${value > 0 ? "+" : ""}${value}%`;
 }
 
 function Stat({

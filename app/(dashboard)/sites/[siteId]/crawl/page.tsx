@@ -120,7 +120,6 @@ export default async function CrawlPage({ params }: Props) {
             />
           </div>
 
-          {/* What Bing's crawler saw, next to what ours did */}
           {bingCrawl && (
             <div className="panel p-5">
               <div className="flex flex-wrap items-end justify-between gap-3">

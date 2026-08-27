@@ -2,8 +2,8 @@
 export interface KeywordData {
   query: string;
   page?: string;
-  device?: string;
-  country?: string;
+  device?: string | null;
+  country?: string | null;
   clicks: number;
   impressions: number;
   ctr: number;

@@ -41,7 +41,6 @@ export async function getBingWeeklyRows(
     clicks: row.clicks,
     impressions: row.impressions,
     avgImpressionPosition: row.avgImpressionPosition,
-    avgClickPosition: row.avgClickPosition,
   }));
 }
 
@@ -75,4 +74,3 @@ export async function getBingDailyRows(siteId: string, start: Date, end: Date) {
     }));
 }
 
-export { normaliseQueryKey, normaliseUrlKey } from "@/lib/sources/keys";

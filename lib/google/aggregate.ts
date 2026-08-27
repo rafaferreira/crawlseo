@@ -58,8 +58,11 @@ export function aggregateByQueryAndDate(rows: KeywordData[]): KeywordData[] {
     position: Number((weightedPosition / weight).toFixed(2)),
     ctr: row.impressions > 0 ? Number((row.clicks / row.impressions).toFixed(4)) : 0,
     // The row now spans every slice, so a single device or country is only
-    // reported when there genuinely was only one.
-    device: devices.size === 1 ? [...devices][0] : undefined,
-    country: countries.size === 1 ? [...countries][0] : undefined,
+    // reported when there genuinely was only one. Null, not undefined: on the
+    // update half of an upsert Prisma reads undefined as "leave this column
+    // alone", which would keep yesterday's single device on a row that has
+    // since grown to cover several.
+    device: devices.size === 1 ? [...devices][0] : null,
+    country: countries.size === 1 ? [...countries][0] : null,
   }));
 }

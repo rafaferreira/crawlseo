@@ -12,7 +12,6 @@ import {
   sortRows,
   useTableSort,
   type MetricHeader,
-  type SortDir,
 } from "@/components/ui/data-table";
 
 type Presence = "all" | "both" | "bing" | "google";
@@ -32,15 +31,6 @@ const HEADERS: MetricHeader[] = [
   { label: "Google impr.", align: "right", sortKey: "googleImpressions" },
   { label: "Bing impr.", align: "right", sortKey: "bingImpressions" },
 ];
-
-const DEFAULT_DIRS: Record<string, SortDir> = {
-  query: "asc",
-  googlePosition: "asc",
-  bingPosition: "asc",
-  gap: "desc",
-  googleImpressions: "desc",
-  bingImpressions: "desc",
-};
 
 const SORT_OPTIONS = HEADERS.filter((header) => header.sortKey).map((header) => ({
   value: header.sortKey as string,
@@ -136,7 +126,10 @@ export function EngineComparisonTable({ rows }: { rows: EngineRow[] }) {
             value={sort.key}
             onChange={(e) => {
               const key = e.target.value;
-              setSort({ key, dir: DEFAULT_DIRS[key] ?? "desc" });
+              setSort({
+                key,
+                dir: HEADERS.find((h) => h.sortKey === key)?.defaultDir ?? "desc",
+              });
             }}
             className={`${filterInputClass} pr-8`}
           >

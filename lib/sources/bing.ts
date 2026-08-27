@@ -2,17 +2,18 @@ import {
   bingPropertyFor,
   getBingDailyRows,
   getBingWindowRows,
+} from "@/lib/bing/bing-read";
+import {
   normaliseQueryKey,
   normaliseUrlKey,
-} from "@/lib/bing/bing-read";
+} from "@/lib/sources/keys";
 import { syncBingDataForSite } from "@/lib/workers/bing-sync";
-import { formatCompact } from "@/lib/seo-metrics";
+import { formatLargeNumber } from "@/lib/date-utils";
 import type { DataSource } from "./types";
 
 export const bingSource: DataSource = {
   id: "bing",
   label: "Bing",
-  supplies: { queries: true, pages: true, traffic: true },
   windowCaveat:
     "Bing reports queries and pages in weekly buckets, so window edges are approximate by up to six days.",
 
@@ -25,7 +26,7 @@ export const bingSource: DataSource = {
     if (!result.success) return { ok: false, detail: result.error ?? "sync failed" };
     return {
       ok: true,
-      detail: `${formatCompact(result.daysUpserted)} days, ${formatCompact(
+      detail: `${formatLargeNumber(result.daysUpserted)} days, ${formatLargeNumber(
         result.queriesUpserted + result.pagesUpserted
       )} weekly rows`,
     };

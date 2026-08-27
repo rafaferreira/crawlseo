@@ -1,14 +1,13 @@
 import { db } from "@/lib/db";
-import { normaliseQueryKey, normaliseUrlKey } from "@/lib/bing/bing-read";
+import { normaliseQueryKey, normaliseUrlKey } from "@/lib/sources/keys";
 import { ReauthRequiredError } from "@/lib/google";
 import { syncGSCDataForSite } from "@/lib/workers/gsc-sync";
-import { formatCompact } from "@/lib/seo-metrics";
+import { formatLargeNumber } from "@/lib/date-utils";
 import type { DataSource } from "./types";
 
 export const googleSource: DataSource = {
   id: "google",
   label: "Google",
-  supplies: { queries: true, pages: true, traffic: true },
 
   async isEnabled(siteId: string) {
     const site = await db.site.findUnique({
@@ -31,7 +30,7 @@ export const googleSource: DataSource = {
     }
     return {
       ok: true,
-      detail: `${formatCompact(result.keywordsInserted)} keywords, ${formatCompact(
+      detail: `${formatLargeNumber(result.keywordsInserted)} keywords, ${formatLargeNumber(
         result.pagesInserted
       )} pages`,
     };

@@ -7,11 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SyncButton } from "@/components/sites/sync-button";
 import { CsvExportButton } from "@/components/ui/csv-export-button";
 import { DataLagBadge } from "@/components/ui/data-lag-badge";
-import {
-  enabledSources,
-  parseSourceParam,
-  resolveSources,
-} from "@/lib/sources";
+import { sourceScope } from "@/lib/sources";
 import { SourceFilter } from "@/components/ui/source-filter";
 import { PagesTable } from "@/components/sites/pages-table";
 
@@ -23,7 +19,7 @@ interface PagesPageProps {
 export default async function PagesPage({ params, searchParams }: PagesPageProps) {
   const session = await auth();
   const { siteId } = await params;
-  const requestedSource = parseSourceParam((await searchParams).source);
+  const sources = await sourceScope(siteId, (await searchParams).source);
 
   const site = await db.site.findUnique({
     where: { id: siteId },
@@ -34,12 +30,7 @@ export default async function PagesPage({ params, searchParams }: PagesPageProps
     redirect("/sites");
   }
 
-  const [available, active] = await Promise.all([
-    enabledSources(siteId),
-    resolveSources(siteId, requestedSource),
-  ]);
-  const activeIds = active.map((source) => source.id);
-  const pages = await getTopPages(siteId, 28, 100, activeIds);
+  const pages = await getTopPages(siteId, 28, 100, sources.ids);
 
   return (
     <div>
@@ -49,17 +40,7 @@ export default async function PagesPage({ params, searchParams }: PagesPageProps
         description="Landing pages over the last 28 days, aggregated across every connected source."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SourceFilter
-              sources={available.map((source) => ({
-                id: source.id,
-                label: source.label,
-              }))}
-              active={activeIds.length === available.length ? "all" : activeIds[0]}
-              caveat={available
-                .map((source) => source.windowCaveat)
-                .filter(Boolean)
-                .join(" ")}
-            />
+            <SourceFilter {...sources.filter} />
             <DataLagBadge />
             <CsvExportButton siteId={siteId} type="pages" />
             <SyncButton siteId={siteId} />

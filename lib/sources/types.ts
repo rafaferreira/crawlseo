@@ -4,11 +4,10 @@
  * Every screen reads through the registry rather than through one provider, so
  * adding a source (Cloudflare analytics, a rank tracker, anything else that can
  * answer "which queries, which pages, how much traffic") means writing one file
- * here and nothing else. Sources declare what they can supply: a source that
- * only knows traffic never gets asked for queries.
+ * here and a line in the registry.
  */
 
-export type SourceId = string;
+export type SourceId = "google" | "bing";
 
 export interface SourceRow {
   /** Match key across sources: normalised query, or normalised URL. */
@@ -38,11 +37,6 @@ export interface SourceSyncResult {
 export interface DataSource {
   id: SourceId;
   label: string;
-  supplies: {
-    queries: boolean;
-    pages: boolean;
-    traffic: boolean;
-  };
   /**
    * Whether this source is configured for the site. Google is available as
    * soon as a property is connected; others need their own credentials.
@@ -63,7 +57,7 @@ export interface DataSource {
   /**
    * Pulls fresh data for the site. Declared here so one Sync button can fan
    * out over whatever is connected instead of the UI growing a button per
-   * source. Sources that need no pull (a live API read) leave it undefined.
+   * source.
    */
-  sync?(userId: string, siteId: string): Promise<SourceSyncResult>;
+  sync(userId: string, siteId: string): Promise<SourceSyncResult>;
 }

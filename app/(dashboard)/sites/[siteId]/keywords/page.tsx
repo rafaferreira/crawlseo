@@ -7,11 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SyncButton } from "@/components/sites/sync-button";
 import { CsvExportButton } from "@/components/ui/csv-export-button";
 import { DataLagBadge } from "@/components/ui/data-lag-badge";
-import {
-  enabledSources,
-  parseSourceParam,
-  resolveSources,
-} from "@/lib/sources";
+import { sourceScope } from "@/lib/sources";
 import { SourceFilter } from "@/components/ui/source-filter";
 import { KeywordsTable } from "@/components/sites/keywords-table";
 
@@ -23,7 +19,7 @@ interface KeywordsPageProps {
 export default async function KeywordsPage({ params, searchParams }: KeywordsPageProps) {
   const session = await auth();
   const { siteId } = await params;
-  const requestedSource = parseSourceParam((await searchParams).source);
+  const sources = await sourceScope(siteId, (await searchParams).source);
 
   const site = await db.site.findUnique({
     where: { id: siteId },
@@ -35,12 +31,7 @@ export default async function KeywordsPage({ params, searchParams }: KeywordsPag
   }
 
   // Load a wide set so position/impression filters aren't capped to top-by-clicks.
-  const [available, active] = await Promise.all([
-    enabledSources(siteId),
-    resolveSources(siteId, requestedSource),
-  ]);
-  const activeIds = active.map((source) => source.id);
-  const keywords = await getTopKeywords(siteId, 28, 1000, activeIds);
+  const keywords = await getTopKeywords(siteId, 28, 1000, sources.ids);
 
   return (
     <div>
@@ -50,17 +41,7 @@ export default async function KeywordsPage({ params, searchParams }: KeywordsPag
         description="Queries with impressions in the last 28 days, aggregated across days and across every connected source."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SourceFilter
-              sources={available.map((source) => ({
-                id: source.id,
-                label: source.label,
-              }))}
-              active={activeIds.length === available.length ? "all" : activeIds[0]}
-              caveat={available
-                .map((source) => source.windowCaveat)
-                .filter(Boolean)
-                .join(" ")}
-            />
+            <SourceFilter {...sources.filter} />
             <DataLagBadge />
             <CsvExportButton siteId={siteId} type="keywords" />
             <SyncButton siteId={siteId} />

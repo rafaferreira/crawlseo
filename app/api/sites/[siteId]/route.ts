@@ -75,7 +75,7 @@ export async function PUT(
     // Verify ownership
     const site = await db.site.findUnique({
       where: { id: siteId },
-      select: { userId: true },
+      select: { userId: true, bingSite: true },
     });
 
     if (!site || site.userId !== session.user.id) {
@@ -88,13 +88,24 @@ export async function PUT(
       bingSite?: string;
     };
 
+    // Stored Bing rows are keyed by site, not by property, so pointing the site
+    // at a different property would blend two properties' history - and page
+    // URLs from both would normalise to the same key and count twice.
+    const nextBingSite = bingSite === undefined ? undefined : bingSite || null;
+    if (nextBingSite !== undefined && nextBingSite !== site.bingSite) {
+      await db.$transaction([
+        db.bingSearchWeekly.deleteMany({ where: { siteId } }),
+        db.bingDaily.deleteMany({ where: { siteId } }),
+      ]);
+    }
+
     const updated = await db.site.update({
       where: { id: siteId },
       data: {
         ...(domain && { domain }),
         ...(gscProperty && { gscProperty }),
         // An empty string clears the connection; undefined leaves it alone.
-        ...(bingSite !== undefined && { bingSite: bingSite || null }),
+        ...(nextBingSite !== undefined && { bingSite: nextBingSite }),
       },
       select: {
         id: true,

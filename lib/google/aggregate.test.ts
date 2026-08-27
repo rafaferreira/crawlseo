@@ -37,12 +37,14 @@ describe("aggregateByQueryAndDate", () => {
     expect(row.page).toBe("https://a.com/big");
   });
 
+  // Null, not undefined: Prisma reads undefined on an update as "leave this
+  // column alone", which would strand yesterday-s single device on the row.
   it("only claims a device or country when the day had just one", () => {
     const [mixed] = aggregateByQueryAndDate([
       { ...base, query: "q", device: "MOBILE", country: "bra", clicks: 0, impressions: 1, position: 5 },
       { ...base, query: "q", device: "DESKTOP", country: "bra", clicks: 0, impressions: 1, position: 5 },
     ]);
-    expect(mixed.device).toBeUndefined();
+    expect(mixed.device).toBeNull();
     expect(mixed.country).toBe("bra");
   });
 

@@ -206,6 +206,22 @@ npm run build
 npm start
 ```
 
+## Data Sources
+
+| Source | What it gives | How to connect |
+| --- | --- | --- |
+| Google Search Console | queries, pages, daily traffic, index coverage | Google sign-in |
+| Bing Webmaster Tools | queries, pages, daily traffic, crawler and index stats | free API key, see [DEVELOPMENT.md](DEVELOPMENT.md#bing-webmaster-tools-setup) |
+
+Every screen aggregates whatever is connected and can be narrowed to one source
+with the filter in its header, or with `?source=google` / `?source=bing`. The
+**Bing vs Google** page breaks the two apart: which source reports a query at
+all, and where each one ranks it.
+
+`POST /api/sites/<id>/sync` syncs every connected source for a site and reports
+each one separately. `GET /api/sites/<id>/traffic` returns every connected
+source added together unless `?source=` narrows it.
+
 ## Environment Variables
 
 | Variable | Required | Description |

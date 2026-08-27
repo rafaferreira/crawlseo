@@ -21,7 +21,8 @@ import {
   getDailyTraffic,
 } from "../lib/seo-metrics";
 import { getAllOpportunities } from "../lib/seo-opportunities";
-import { getBingTopRows, getEngineComparison } from "../lib/bing-metrics";
+import { getEngineComparison } from "../lib/bing-metrics";
+import { enabledSources, type SourceId } from "../lib/sources";
 import { runSiteCrawl } from "../lib/crawler/engine";
 
 import {
@@ -32,9 +33,20 @@ import {
   formatCrawlIssues,
   formatVitals,
   formatOpportunities,
-  formatBingRows,
   formatEngineGap,
 } from "./formatters";
+
+/** Optional narrowing to one source; omitted means every connected one. */
+const sourcesParam = z
+  .array(z.enum(["google", "bing"]))
+  .optional()
+  .describe("Limit to these sources (default: every source connected to the site)");
+
+async function sourceNote(siteId: string, sources?: SourceId[]): Promise<string> {
+  const connected = (await enabledSources(siteId)).map((source) => source.label);
+  const used = sources?.length ? sources : connected.map((l) => l.toLowerCase());
+  return `\n\nSources: ${used.join(" + ")} (connected: ${connected.join(", ") || "none"}). Totals are added across sources; Bing reports weekly buckets, so window edges are approximate by up to six days.`;
+}
 
 // ---------------------------------------------------------------------------
 // Server
@@ -60,7 +72,16 @@ server.tool(
         domain: true,
         gscProperty: true,
         createdAt: true,
-        _count: { select: { crawls: true, keywords: true, pages: true } },
+        bingSite: true,
+        _count: {
+          select: {
+            crawls: true,
+            keywords: true,
+            pages: true,
+            bingWeekly: true,
+            bingDaily: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -72,8 +93,10 @@ server.tool(
     const lines = sites.map(
       (s) =>
         `${s.domain}  (id: ${s.id})` +
-        `\n  GSC: ${s.gscProperty ?? "not connected"}` +
-        `  |  Crawls: ${s._count.crawls}  |  Keywords: ${s._count.keywords}  |  Pages: ${s._count.pages}` +
+        `\n  Google: ${s.gscProperty ?? "not connected"}` +
+        `\n  Bing:   ${s.bingSite ?? "not connected"}` +
+        `\n  Rows: ${s._count.keywords} queries, ${s._count.pages} pages, ` +
+        `${s._count.bingWeekly + s._count.bingDaily} bing  |  Crawls: ${s._count.crawls}` +
         `\n  Created: ${s.createdAt.toISOString().slice(0, 10)}`
     );
 
@@ -90,8 +113,11 @@ server.tool(
 server.tool(
   "get_site_overview",
   "Get a comprehensive overview of a site including KPIs, health score, and vitals.",
-  { siteId: z.string().describe("The site ID to get overview for") },
-  async ({ siteId }) => {
+  {
+    siteId: z.string().describe("The site ID to get overview for"),
+    sources: sourcesParam,
+  },
+  async ({ siteId, sources }) => {
     const site = await db.site.findUnique({
       where: { id: siteId },
       select: { id: true, domain: true, gscProperty: true },
@@ -102,7 +128,7 @@ server.tool(
     }
 
     const [metrics, latestCrawl, latestVitals] = await Promise.all([
-      getSitePeriodMetrics(siteId, 28),
+      getSitePeriodMetrics(siteId, 28, sources),
       db.crawl.findFirst({
         where: { siteId },
         orderBy: { startedAt: "desc" },
@@ -122,7 +148,14 @@ server.tool(
     ]);
 
     const overview = { ...site, metrics, latestCrawl, latestVitals };
-    return { content: [{ type: "text", text: formatSiteOverview(overview) }] };
+    return {
+      content: [
+        {
+          type: "text",
+          text: formatSiteOverview(overview) + (await sourceNote(siteId, sources)),
+        },
+      ],
+    };
   }
 );
 
@@ -137,10 +170,15 @@ server.tool(
     siteId: z.string().describe("The site ID"),
     limit: z.number().optional().default(25).describe("Max keywords to return (default 25)"),
     days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+    sources: sourcesParam,
   },
-  async ({ siteId, limit, days }) => {
-    const keywords = await getTopKeywords(siteId, days, limit);
-    return { content: [{ type: "text", text: formatKeywords(keywords) }] };
+  async ({ siteId, limit, days, sources }) => {
+    const rows = await getTopKeywords(siteId, days, limit, sources);
+    return {
+      content: [
+        { type: "text", text: formatKeywords(rows) + (await sourceNote(siteId, sources)) },
+      ],
+    };
   }
 );
 
@@ -155,10 +193,15 @@ server.tool(
     siteId: z.string().describe("The site ID"),
     limit: z.number().optional().default(25).describe("Max pages to return (default 25)"),
     days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
+    sources: sourcesParam,
   },
-  async ({ siteId, limit, days }) => {
-    const pages = await getTopPages(siteId, days, limit);
-    return { content: [{ type: "text", text: formatPages(pages) }] };
+  async ({ siteId, limit, days, sources }) => {
+    const rows = await getTopPages(siteId, days, limit, sources);
+    return {
+      content: [
+        { type: "text", text: formatPages(rows) + (await sourceNote(siteId, sources)) },
+      ],
+    };
   }
 );
 
@@ -172,10 +215,15 @@ server.tool(
   {
     siteId: z.string().describe("The site ID"),
     days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),
+    sources: sourcesParam,
   },
-  async ({ siteId, days }) => {
-    const traffic = await getDailyTraffic(siteId, days);
-    return { content: [{ type: "text", text: formatTraffic(traffic) }] };
+  async ({ siteId, days, sources }) => {
+    const traffic = await getDailyTraffic(siteId, days, sources);
+    return {
+      content: [
+        { type: "text", text: formatTraffic(traffic) + (await sourceNote(siteId, sources)) },
+      ],
+    };
   }
 );
 
@@ -350,40 +398,13 @@ server.tool(
   }
 );
 
-// ---------------------------------------------------------------------------
-// 11. get_bing_keywords
-// ---------------------------------------------------------------------------
-
-server.tool(
-  "get_bing_keywords",
-  "Get top queries or pages as reported by Bing Webmaster Tools.",
-  {
-    siteId: z.string().describe("The site ID"),
-    kind: z
-      .enum(["query", "page"])
-      .optional()
-      .default("query")
-      .describe("Whether to return queries or pages (default query)"),
-    limit: z.number().optional().default(25).describe("Max rows to return (default 25)"),
-    days: z.number().optional().default(28).describe("Lookback period in days (default 28)"),
-  },
-  async ({ siteId, kind, limit, days }) => {
-    const rows = await getBingTopRows(siteId, kind, days, limit);
-    return {
-      content: [
-        { type: "text", text: formatBingRows(rows, kind === "query" ? "queries" : "pages") },
-      ],
-    };
-  }
-);
-
-// ---------------------------------------------------------------------------
-// 12. get_engine_gap
+/// ---------------------------------------------------------------------------
+// 11. compare_sources
 // ---------------------------------------------------------------------------
 
 server.tool(
-  "get_engine_gap",
-  "Compare the queries Google and Bing report for a site: which engine sees a query at all, and where each ranks it.",
+  "compare_sources",
+  "Compare the queries Google and Bing report for a site: which one sees a query at all, and where each ranks it. Volume is never summed across sources here.",
   {
     siteId: z.string().describe("The site ID"),
     days: z.number().optional().default(90).describe("Lookback period in days (default 90)"),

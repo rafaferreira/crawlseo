@@ -103,8 +103,6 @@ export function BingSiteSection({
     }
   }
 
-  const items = sites.map((site) => ({ value: site.url, label: site.url }));
-
   return (
     <div className="panel p-5">
       <div className="flex items-start justify-between gap-4">
@@ -140,7 +138,6 @@ export function BingSiteSection({
             <Select
               value={selected}
               onValueChange={(value) => setSelected(String(value))}
-              items={items}
               onOpenChange={(open) => {
                 if (open) void loadSites();
               }}

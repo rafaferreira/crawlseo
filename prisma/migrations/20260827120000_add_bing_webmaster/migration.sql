@@ -32,13 +32,9 @@ CREATE TABLE "BingSearchWeekly" (
     "clicks" INTEGER NOT NULL DEFAULT 0,
     "impressions" INTEGER NOT NULL DEFAULT 0,
     "avgImpressionPosition" DOUBLE PRECISION,
-    "avgClickPosition" DOUBLE PRECISION,
 
     CONSTRAINT "BingSearchWeekly_pkey" PRIMARY KEY ("id")
 );
-
--- CreateIndex
-CREATE INDEX "BingDaily_siteId_date_idx" ON "BingDaily"("siteId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "BingDaily_siteId_date_key" ON "BingDaily"("siteId", "date");
