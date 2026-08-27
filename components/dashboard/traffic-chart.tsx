@@ -20,6 +20,8 @@ interface ChartData {
   date: string;
   clicks: number;
   impressions: number;
+  bingClicks?: number;
+  bingImpressions?: number;
 }
 
 function formatAxisDate(value: string) {
@@ -89,6 +91,8 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
 
   const info = "#A78BFA";
   const success = "#34D399";
+  const bing = "#F59E0B";
+  const hasBing = data.some((row) => row.bingClicks !== undefined);
   const axis = "#71717A";
   const grid = "rgba(255,255,255,0.06)";
 
@@ -110,6 +114,12 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
           <span className="inline-flex items-center gap-2 text-muted-foreground">
             <span className="size-2 rounded-full" style={{ background: success }} /> Impressions
           </span>
+          {hasBing && (
+            <span className="inline-flex items-center gap-2 text-muted-foreground">
+              <span className="size-2 rounded-full" style={{ background: bing }} />{" "}
+              Bing clicks
+            </span>
+          )}
         </div>
       </div>
 
@@ -161,7 +171,11 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
             labelFormatter={(label) => formatAxisDate(String(label))}
             formatter={(value, name) => [
               typeof value === "number" ? value.toLocaleString() : value,
-              name === "clicks" ? "Clicks" : "Impressions",
+              name === "clicks"
+                ? "Clicks (Google)"
+                : name === "bingClicks"
+                  ? "Clicks (Bing)"
+                  : "Impressions (Google)",
             ]}
           />
           <Area
@@ -182,11 +196,24 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
             strokeWidth={2}
             isAnimationActive={false}
           />
+          {hasBing && (
+            <Area
+              yAxisId="clicks"
+              type="monotone"
+              dataKey="bingClicks"
+              stroke={bing}
+              fill="none"
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              isAnimationActive={false}
+            />
+          )}
         </AreaChart>
       </ResponsiveContainer>
 
       <p className="mt-3 text-atom-caption text-muted-foreground">
-        Google reports with a ~3 day delay; the most recent days are not shown yet.
+        Google reports with a ~3 day delay; the most recent days are not shown
+        yet. Series are kept separate - the same visit is never counted twice.
       </p>
     </div>
   );

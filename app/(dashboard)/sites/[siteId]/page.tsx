@@ -15,6 +15,8 @@ import {
 } from "@/components/sites/action-buttons";
 import { CsvExportButton } from "@/components/ui/csv-export-button";
 import { getAllOpportunities } from "@/lib/seo-opportunities";
+import { getBingPeriodMetrics, getEngineComparison } from "@/lib/bing-metrics";
+import { formatCompact } from "@/lib/seo-metrics";
 
 interface SitePageProps {
   params: Promise<{ siteId: string }>;
@@ -30,6 +32,7 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
       userId: true,
       domain: true,
       gscProperty: true,
+      bingSite: true,
       _count: { select: { keywords: true } },
     },
   });
@@ -55,6 +58,13 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
       ? await getAllOpportunities(siteId)
       : null;
 
+  const bing = site.bingSite
+    ? {
+        traffic: await getBingPeriodMetrics(siteId, 28),
+        comparison: await getEngineComparison(siteId, 90),
+      }
+    : null;
+
   return (
     <div>
       <PageHeader
@@ -79,6 +89,7 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
           ["Pages", "pages"],
           ["Crawl", "crawl"],
           ["Vitals", "vitals"],
+          ["Bing vs Google", "bing"],
           ["Alerts", "alerts"],
           ["Settings", "settings"],
         ].map(([label, path]) => (
@@ -137,6 +148,30 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
           </div>
 
           <DashboardMetrics siteId={siteId} />
+
+          {bing && (
+            <Link
+              href={`/sites/${siteId}/bing`}
+              className="panel flex flex-wrap items-center justify-between gap-4 p-4 transition hover:border-primary/40"
+            >
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Bing · last 28 days
+                </p>
+                <p className="mt-1 font-heading text-xl font-semibold text-foreground">
+                  {formatCompact(bing.traffic.current.clicks)} clicks ·{" "}
+                  {formatCompact(bing.traffic.current.impressions)} impressions
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-signal">
+                  {bing.comparison.counts.bing.toLocaleString()}
+                </span>{" "}
+                queries only Bing reports ·{" "}
+                {bing.comparison.counts.both.toLocaleString()} on both engines
+              </p>
+            </Link>
+          )}
           <TrafficChart siteId={siteId} />
           <TopKeywords siteId={siteId} />
 

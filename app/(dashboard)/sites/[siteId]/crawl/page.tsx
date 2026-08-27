@@ -7,6 +7,8 @@ import { CrawlButton } from "@/components/sites/action-buttons";
 import { CrawlStatusPoller } from "@/components/sites/crawl-status-poller";
 import { CrawledPagesTable } from "@/components/sites/crawled-pages-table";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { getBingCrawlSummary } from "@/lib/bing-metrics";
 
 interface Props {
   params: Promise<{ siteId: string }>;
@@ -18,9 +20,11 @@ export default async function CrawlPage({ params }: Props) {
 
   const site = await db.site.findUnique({
     where: { id: siteId },
-    select: { userId: true, domain: true },
+    select: { userId: true, domain: true, bingSite: true },
   });
   if (!site || site.userId !== session?.user?.id) redirect("/sites");
+
+  const bingCrawl = site.bingSite ? await getBingCrawlSummary(siteId, 28) : null;
 
   // Check for running crawl
   const runningCrawl = await db.crawl.findFirst({
@@ -115,6 +119,38 @@ export default async function CrawlPage({ params }: Props) {
               hint="no inlinks"
             />
           </div>
+
+          {/* What Bing's crawler saw, next to what ours did */}
+          {bingCrawl && (
+            <div className="panel p-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h3 className="font-heading text-lg font-semibold">
+                    Bing crawler
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    bingbot over {bingCrawl.days} days · index count as of{" "}
+                    {bingCrawl.latestDate}. Our crawl found {latest.pagesFound}{" "}
+                    pages.
+                  </p>
+                </div>
+                <Link
+                  href={`/sites/${siteId}/bing`}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:border-primary hover:text-primary"
+                >
+                  Bing vs Google
+                </Link>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <ScoreCard label="In index" value={bingCrawl.inIndex.toLocaleString()} hint="Bing" />
+                <ScoreCard label="Crawled" value={bingCrawl.crawledPages.toLocaleString()} hint={`${bingCrawl.days}d`} />
+                <ScoreCard label="301" value={bingCrawl.code301.toLocaleString()} hint="redirects" tone={bingCrawl.code301 > 0 ? "mid" : undefined} />
+                <ScoreCard label="4xx" value={bingCrawl.code4xx.toLocaleString()} hint="not found" tone={bingCrawl.code4xx > 0 ? "bad" : undefined} />
+                <ScoreCard label="5xx" value={bingCrawl.code5xx.toLocaleString()} hint="server" tone={bingCrawl.code5xx > 0 ? "bad" : undefined} />
+                <ScoreCard label="Blocked" value={bingCrawl.blockedByRobots.toLocaleString()} hint="robots.txt" />
+              </div>
+            </div>
+          )}
 
           {/* Crawled pages table (from AuditPage model) */}
           {auditPages.length > 0 && (
