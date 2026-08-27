@@ -82,9 +82,10 @@ export async function PUT(
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { domain, gscProperty } = (await req.json()) as {
+    const { domain, gscProperty, bingSite } = (await req.json()) as {
       domain?: string;
       gscProperty?: string;
+      bingSite?: string;
     };
 
     const updated = await db.site.update({
@@ -92,11 +93,14 @@ export async function PUT(
       data: {
         ...(domain && { domain }),
         ...(gscProperty && { gscProperty }),
+        // An empty string clears the connection; undefined leaves it alone.
+        ...(bingSite !== undefined && { bingSite: bingSite || null }),
       },
       select: {
         id: true,
         domain: true,
         gscProperty: true,
+        bingSite: true,
         updatedAt: true,
       },
     });
