@@ -3,6 +3,38 @@
  * Produces compact, readable text tables with aligned columns.
  */
 
+import type { Crawl, CrawlIssue, VitalsReport } from "@prisma/client";
+
+import type {
+  DailyTraffic,
+  KeywordRow,
+  PageRow,
+  PeriodMetrics,
+} from "../lib/seo-metrics";
+import type { getAllOpportunities } from "../lib/seo-opportunities";
+
+type Opportunities = Awaited<ReturnType<typeof getAllOpportunities>>;
+
+interface SiteOverview {
+  id: string;
+  domain: string;
+  gscProperty?: string | null;
+  metrics?: {
+    current: PeriodMetrics;
+    deltas: {
+      clicks: number;
+      impressions: number;
+      avgPosition: number;
+      avgCtr: number;
+    };
+  } | null;
+  latestCrawl?: Pick<
+    Crawl,
+    "status" | "healthScore" | "pagesFound" | "issuesFound" | "finishedAt"
+  > | null;
+  latestVitals?: VitalsReport | null;
+}
+
 export function formatTable(headers: string[], rows: string[][]): string {
   const widths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map((r) => (r[i] ?? "").length))
@@ -32,7 +64,7 @@ function pos(n: number): string {
   return n.toFixed(1);
 }
 
-export function formatSiteOverview(site: any): string {
+export function formatSiteOverview(site: SiteOverview): string {
   const lines: string[] = [];
   lines.push(`Site: ${site.domain}`);
   lines.push(`ID: ${site.id}`);
@@ -72,7 +104,7 @@ export function formatSiteOverview(site: any): string {
   return lines.join("\n");
 }
 
-export function formatKeywords(keywords: any[]): string {
+export function formatKeywords(keywords: KeywordRow[]): string {
   if (keywords.length === 0) return "No keywords found.";
 
   const headers = ["Keyword", "Clicks", "Impressions", "Position", "CTR"];
@@ -87,7 +119,7 @@ export function formatKeywords(keywords: any[]): string {
   return `Top ${keywords.length} keywords:\n\n` + formatTable(headers, rows);
 }
 
-export function formatPages(pages: any[]): string {
+export function formatPages(pages: PageRow[]): string {
   if (pages.length === 0) return "No pages found.";
 
   const headers = ["URL", "Clicks", "Impressions", "Position", "CTR"];
@@ -103,7 +135,7 @@ export function formatPages(pages: any[]): string {
   return `Top ${pages.length} pages:\n\n` + formatTable(headers, rows);
 }
 
-export function formatTraffic(traffic: any[]): string {
+export function formatTraffic(traffic: DailyTraffic[]): string {
   if (traffic.length === 0) return "No traffic data found.";
 
   const headers = ["Date", "Clicks", "Impressions"];
@@ -119,7 +151,9 @@ export function formatTraffic(traffic: any[]): string {
   );
 }
 
-export function formatCrawlIssues(issues: any[]): string {
+export function formatCrawlIssues(
+  issues: Pick<CrawlIssue, "url" | "type" | "severity" | "message">[]
+): string {
   if (issues.length === 0) return "No crawl issues found.";
 
   const headers = ["Severity", "Type", "URL", "Message"];
@@ -133,7 +167,7 @@ export function formatCrawlIssues(issues: any[]): string {
   return `${issues.length} crawl issues:\n\n` + formatTable(headers, rows);
 }
 
-export function formatVitals(vitals: any[]): string {
+export function formatVitals(vitals: VitalsReport[]): string {
   if (vitals.length === 0) return "No vitals reports found.";
 
   const headers = ["Date", "Device", "Perf", "LCP", "CLS", "INP", "TTFB"];
@@ -150,7 +184,7 @@ export function formatVitals(vitals: any[]): string {
   return `${vitals.length} vitals reports:\n\n` + formatTable(headers, rows);
 }
 
-export function formatOpportunities(opportunities: any): string {
+export function formatOpportunities(opportunities: Opportunities): string {
   const lines: string[] = [];
   const s = opportunities.summary;
 
@@ -160,7 +194,7 @@ export function formatOpportunities(opportunities: any): string {
 
   if (opportunities.feed && opportunities.feed.length > 0) {
     const headers = ["Type", "Severity", "Title", "Detail"];
-    const rows = opportunities.feed.map((o: any) => [
+    const rows = opportunities.feed.map((o) => [
       o.type,
       o.severity,
       (o.title || "").length > 35 ? (o.title || "").slice(0, 32) + "..." : o.title || "",
