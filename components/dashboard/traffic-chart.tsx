@@ -14,14 +14,14 @@ import {
 interface TrafficChartProps {
   siteId: string;
   days?: number;
+  /** Narrow to one source; omitted means every connected source. */
+  source?: string;
 }
 
 interface ChartData {
   date: string;
   clicks: number;
   impressions: number;
-  bingClicks?: number;
-  bingImpressions?: number;
 }
 
 function formatAxisDate(value: string) {
@@ -29,7 +29,7 @@ function formatAxisDate(value: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
+export function TrafficChart({ siteId, days = 90, source }: TrafficChartProps) {
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +41,10 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/sites/${siteId}/traffic?days=${days}`);
+        const res = await fetch(
+          `/api/sites/${siteId}/traffic?days=${days}` +
+            (source ? `&source=${encodeURIComponent(source)}` : "")
+        );
         if (!res.ok) throw new Error("Failed to load traffic");
         const json = (await res.json()) as ChartData[];
         if (!cancelled) setData(json);
@@ -58,7 +61,7 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
     return () => {
       cancelled = true;
     };
-  }, [siteId, days]);
+  }, [siteId, days, source]);
 
   if (loading) {
     return (
@@ -91,8 +94,6 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
 
   const info = "#A78BFA";
   const success = "#34D399";
-  const bing = "#F59E0B";
-  const hasBing = data.some((row) => row.bingClicks !== undefined);
   const axis = "#71717A";
   const grid = "rgba(255,255,255,0.06)";
 
@@ -114,12 +115,6 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
           <span className="inline-flex items-center gap-2 text-muted-foreground">
             <span className="size-2 rounded-full" style={{ background: success }} /> Impressions
           </span>
-          {hasBing && (
-            <span className="inline-flex items-center gap-2 text-muted-foreground">
-              <span className="size-2 rounded-full" style={{ background: bing }} />{" "}
-              Bing clicks
-            </span>
-          )}
         </div>
       </div>
 
@@ -171,11 +166,7 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
             labelFormatter={(label) => formatAxisDate(String(label))}
             formatter={(value, name) => [
               typeof value === "number" ? value.toLocaleString() : value,
-              name === "clicks"
-                ? "Clicks (Google)"
-                : name === "bingClicks"
-                  ? "Clicks (Bing)"
-                  : "Impressions (Google)",
+              name === "clicks" ? "Clicks" : "Impressions",
             ]}
           />
           <Area
@@ -196,24 +187,12 @@ export function TrafficChart({ siteId, days = 90 }: TrafficChartProps) {
             strokeWidth={2}
             isAnimationActive={false}
           />
-          {hasBing && (
-            <Area
-              yAxisId="clicks"
-              type="monotone"
-              dataKey="bingClicks"
-              stroke={bing}
-              fill="none"
-              strokeWidth={2}
-              strokeDasharray="4 3"
-              isAnimationActive={false}
-            />
-          )}
         </AreaChart>
       </ResponsiveContainer>
 
       <p className="mt-3 text-atom-caption text-muted-foreground">
-        Google reports with a ~3 day delay; the most recent days are not shown
-        yet. Series are kept separate - the same visit is never counted twice.
+        Every connected source, added up. Google reports with a ~3 day delay,
+        so the most recent days are not shown yet.
       </p>
     </div>
   );

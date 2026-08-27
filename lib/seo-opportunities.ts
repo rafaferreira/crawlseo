@@ -1,6 +1,11 @@
 import { db } from "@/lib/db";
 import { getDateRange } from "@/lib/date-utils";
-import { getTopKeywords, getTopPages } from "@/lib/seo-metrics";
+import {
+  getTopKeywords,
+  getTopPages,
+  getPageRowsForRange,
+} from "@/lib/seo-metrics";
+import { normaliseUrlKey } from "@/lib/bing/bing-read";
 
 function range(days: number) {
   const { start, end } = getDateRange(days);
@@ -70,21 +75,26 @@ export async function getContentDecay(siteId: string, limit = 20) {
   previous.start.setUTCDate(previous.start.getUTCDate() - 28);
   previous.end = new Date(current.start.getTime() - 1);
 
+  // Both windows come from the combined reader, so a page that lost Bing
+  // traffic counts as decay just like one that lost Google traffic.
   const [currPages, prevPages] = await Promise.all([
-    db.page.findMany({
-      where: { siteId, date: { gte: current.start, lte: current.end } },
-      select: { url: true, clicks: true, impressions: true },
-    }),
-    db.page.findMany({
-      where: { siteId, date: { gte: previous.start, lte: previous.end } },
-      select: { url: true, clicks: true },
-    }),
+    getPageRowsForRange(siteId, current.start, current.end),
+    getPageRowsForRange(siteId, previous.start, previous.end),
   ]);
 
   const curr = new Map<string, number>();
   const prev = new Map<string, number>();
-  for (const p of currPages) curr.set(p.url, (curr.get(p.url) || 0) + p.clicks);
-  for (const p of prevPages) prev.set(p.url, (prev.get(p.url) || 0) + p.clicks);
+  const labels = new Map<string, string>();
+  for (const p of currPages) {
+    const key = normaliseUrlKey(p.url);
+    labels.set(key, p.url);
+    curr.set(key, (curr.get(key) || 0) + p.clicks);
+  }
+  for (const p of prevPages) {
+    const key = normaliseUrlKey(p.url);
+    if (!labels.has(key)) labels.set(key, p.url);
+    prev.set(key, (prev.get(key) || 0) + p.clicks);
+  }
 
   const rows: {
     url: string;
@@ -93,9 +103,10 @@ export async function getContentDecay(siteId: string, limit = 20) {
     changePct: number;
   }[] = [];
 
-  for (const [url, previousClicks] of prev) {
+  for (const [key, previousClicks] of prev) {
+    const url = labels.get(key) ?? key;
     if (previousClicks < 10) continue;
-    const currentClicks = curr.get(url) || 0;
+    const currentClicks = curr.get(key) || 0;
     const changePct = ((currentClicks - previousClicks) / previousClicks) * 100;
     if (changePct <= -25) {
       rows.push({ url, currentClicks, previousClicks, changePct });
@@ -105,6 +116,10 @@ export async function getContentDecay(siteId: string, limit = 20) {
   return rows.sort((a, b) => a.changePct - b.changePct).slice(0, limit);
 }
 
+/**
+ * Google only. Bing never reports a query and the page it landed on in the
+ * same row, so there is nothing to attribute a second landing page to.
+ */
 export async function getCannibalization(siteId: string, limit = 20) {
   const r = range(28);
   const rows = await db.keyword.findMany({

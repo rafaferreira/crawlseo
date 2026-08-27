@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 interface MetricsProps {
   siteId: string;
   days?: number;
+  /** Narrow to specific data sources; omitted means every connected one. */
+  sources?: string[];
 }
 
 function MetricCard({
@@ -50,8 +52,12 @@ function MetricCard({
   );
 }
 
-export async function DashboardMetrics({ siteId, days = 28 }: MetricsProps) {
-  const { current, deltas } = await getSitePeriodMetrics(siteId, days);
+export async function DashboardMetrics({
+  siteId,
+  days = 28,
+  sources,
+}: MetricsProps) {
+  const { current, deltas } = await getSitePeriodMetrics(siteId, days, sources);
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

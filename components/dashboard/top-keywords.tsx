@@ -9,6 +9,8 @@ import {
 interface TopKeywordsProps {
   siteId: string;
   days?: number;
+  /** Narrow to specific data sources; omitted means every connected one. */
+  sources?: string[];
   limit?: number;
 }
 
@@ -16,8 +18,9 @@ export async function TopKeywords({
   siteId,
   days = 28,
   limit = 10,
+  sources,
 }: TopKeywordsProps) {
-  const topKeywords = await getTopKeywords(siteId, days, limit);
+  const topKeywords = await getTopKeywords(siteId, days, limit, sources);
 
   return (
     <div className="panel overflow-hidden">

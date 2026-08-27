@@ -15,16 +15,26 @@ import {
 } from "@/components/sites/action-buttons";
 import { CsvExportButton } from "@/components/ui/csv-export-button";
 import { getAllOpportunities } from "@/lib/seo-opportunities";
-import { getBingPeriodMetrics, getEngineComparison } from "@/lib/bing-metrics";
-import { formatCompact } from "@/lib/seo-metrics";
+import {
+  enabledSources,
+  parseSourceParam,
+  resolveSources,
+} from "@/lib/sources";
+import { SourceFilter } from "@/components/ui/source-filter";
+import { SourceBreakdown } from "@/components/dashboard/source-breakdown";
 
 interface SitePageProps {
   params: Promise<{ siteId: string }>;
+  searchParams: Promise<{ source?: string | string[] }>;
 }
 
-export default async function SiteOverviewPage({ params }: SitePageProps) {
+export default async function SiteOverviewPage({
+  params,
+  searchParams,
+}: SitePageProps) {
   const session = await auth();
   const { siteId } = await params;
+  const requestedSource = parseSourceParam((await searchParams).source);
 
   const site = await db.site.findUnique({
     where: { id: siteId },
@@ -58,12 +68,11 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
       ? await getAllOpportunities(siteId)
       : null;
 
-  const bing = site.bingSite
-    ? {
-        traffic: await getBingPeriodMetrics(siteId, 28),
-        comparison: await getEngineComparison(siteId, 90),
-      }
-    : null;
+  const [available, active] = await Promise.all([
+    enabledSources(siteId),
+    resolveSources(siteId, requestedSource),
+  ]);
+  const activeIds = active.map((source) => source.id);
 
   return (
     <div>
@@ -73,6 +82,17 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
         description={site.gscProperty || "Search Console property"}
         actions={
           <div className="flex flex-wrap items-start gap-2">
+            <SourceFilter
+              sources={available.map((source) => ({
+                id: source.id,
+                label: source.label,
+              }))}
+              active={activeIds.length === available.length ? "all" : activeIds[0]}
+              caveat={available
+                .map((source) => source.windowCaveat)
+                .filter(Boolean)
+                .join(" ")}
+            />
             <DataLagBadge />
             <SyncButton siteId={siteId} />
             <CrawlButton siteId={siteId} />
@@ -147,34 +167,19 @@ export default async function SiteOverviewPage({ params }: SitePageProps) {
             </div>
           </div>
 
-          <DashboardMetrics siteId={siteId} />
+          <DashboardMetrics siteId={siteId} sources={activeIds} />
 
-          {bing && (
-            <Link
-              href={`/sites/${siteId}/bing`}
-              className="panel flex flex-wrap items-center justify-between gap-4 p-4 transition hover:border-primary/40"
-            >
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Bing · last 28 days
-                </p>
-                <p className="mt-1 font-heading text-xl font-semibold text-foreground">
-                  {formatCompact(bing.traffic.current.clicks)}{" "}
-                  {bing.traffic.current.clicks === 1 ? "click" : "clicks"} ·{" "}
-                  {formatCompact(bing.traffic.current.impressions)} impressions
-                </p>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-signal">
-                  {bing.comparison.counts.bing.toLocaleString()}
-                </span>{" "}
-                queries only Bing reports ·{" "}
-                {bing.comparison.counts.both.toLocaleString()} on both engines
-              </p>
-            </Link>
+          {activeIds.length === available.length && (
+            <SourceBreakdown
+              siteId={siteId}
+              compareHref={`/sites/${siteId}/bing`}
+            />
           )}
-          <TrafficChart siteId={siteId} />
-          <TopKeywords siteId={siteId} />
+          <TrafficChart
+            siteId={siteId}
+            source={activeIds.length === available.length ? undefined : activeIds[0]}
+          />
+          <TopKeywords siteId={siteId} sources={activeIds} />
 
           <div className="flex flex-wrap gap-2">
             <CsvExportButton siteId={siteId} type="keywords" />

@@ -1,7 +1,18 @@
 import { db } from "@/lib/db";
-import { calculatePercentChange, getDateRange } from "@/lib/date-utils";
-import { collapseWeeks } from "@/lib/bing/bing-parse";
-import { getTopKeywords } from "@/lib/seo-metrics";
+import { calculatePercentChange } from "@/lib/date-utils";
+import {
+  getBingDailyRows,
+  getBingWindowRows,
+  normaliseQueryKey,
+} from "@/lib/bing/bing-read";
+import { getTopKeywords, parseRange } from "@/lib/seo-metrics";
+
+/**
+ * Bing-only reads, for the Bing vs Google page.
+ *
+ * Everywhere else the two engines arrive already combined through
+ * lib/seo-metrics; this module is what keeps a per-engine view possible.
+ */
 
 export type BingPeriodMetrics = {
   clicks: number;
@@ -30,14 +41,6 @@ export type EngineRow = {
   gap: number | null;
 };
 
-function parseRange(days: number) {
-  const { start, end } = getDateRange(days);
-  return {
-    start: new Date(`${start}T00:00:00.000Z`),
-    end: new Date(`${end}T23:59:59.999Z`),
-  };
-}
-
 function previousRange(days: number) {
   const current = parseRange(days);
   const start = new Date(current.start);
@@ -47,15 +50,11 @@ function previousRange(days: number) {
   return { start, end };
 }
 
-function normaliseQuery(query: string): string {
-  return query.trim().toLowerCase();
-}
-
 function totals(
-  rows: Array<{ clicks: number | null; impressions: number | null }>
+  rows: Array<{ clicks: number; impressions: number }>
 ): BingPeriodMetrics {
-  const clicks = rows.reduce((sum, row) => sum + (row.clicks ?? 0), 0);
-  const impressions = rows.reduce((sum, row) => sum + (row.impressions ?? 0), 0);
+  const clicks = rows.reduce((sum, row) => sum + row.clicks, 0);
+  const impressions = rows.reduce((sum, row) => sum + row.impressions, 0);
   return { clicks, impressions, ctr: impressions > 0 ? clicks / impressions : 0 };
 }
 
@@ -72,14 +71,8 @@ export async function getBingPeriodMetrics(
   const prevRange = previousRange(days);
 
   const [currentRows, previousRows] = await Promise.all([
-    db.bingDaily.findMany({
-      where: { siteId, date: { gte: currentRange.start, lte: currentRange.end } },
-      select: { clicks: true, impressions: true },
-    }),
-    db.bingDaily.findMany({
-      where: { siteId, date: { gte: prevRange.start, lte: prevRange.end } },
-      select: { clicks: true, impressions: true },
-    }),
+    getBingDailyRows(siteId, currentRange.start, currentRange.end),
+    getBingDailyRows(siteId, prevRange.start, prevRange.end),
   ]);
 
   const current = totals(currentRows);
@@ -104,25 +97,9 @@ export async function getBingDailyTraffic(
   days = 90
 ): Promise<Array<{ date: string; clicks: number; impressions: number }>> {
   const range = parseRange(days);
-  const rows = await db.bingDaily.findMany({
-    where: { siteId, date: { gte: range.start, lte: range.end } },
-    select: { date: true, clicks: true, impressions: true },
-    orderBy: { date: "asc" },
-  });
-
-  return rows
-    .filter((row) => row.clicks !== null || row.impressions !== null)
-    .map((row) => ({
-      date: row.date.toISOString().slice(0, 10),
-      clicks: row.clicks ?? 0,
-      impressions: row.impressions ?? 0,
-    }));
+  return getBingDailyRows(siteId, range.start, range.end);
 }
 
-/**
- * Weekly buckets whose week-ending date falls inside the window, collapsed per
- * key. The edges are approximate by up to six days: Bing offers no finer grain.
- */
 export async function getBingTopRows(
   siteId: string,
   kind: "query" | "page",
@@ -130,28 +107,8 @@ export async function getBingTopRows(
   limit = 50
 ): Promise<BingRow[]> {
   const range = parseRange(days);
-  const rows = await db.bingSearchWeekly.findMany({
-    where: { siteId, kind, weekEnding: { gte: range.start, lte: range.end } },
-    select: {
-      key: true,
-      weekEnding: true,
-      clicks: true,
-      impressions: true,
-      avgImpressionPosition: true,
-      avgClickPosition: true,
-    },
-  });
-
-  return collapseWeeks(
-    rows.map((row) => ({
-      key: row.key,
-      weekEnding: row.weekEnding.toISOString().slice(0, 10),
-      clicks: row.clicks,
-      impressions: row.impressions,
-      avgImpressionPosition: row.avgImpressionPosition,
-      avgClickPosition: row.avgClickPosition,
-    }))
-  ).slice(0, limit);
+  const rows = await getBingWindowRows(siteId, kind, range.start, range.end);
+  return rows.slice(0, limit);
 }
 
 /**
@@ -209,7 +166,7 @@ export async function getBingCrawlSummary(siteId: string, days = 28) {
 /**
  * Queries each engine reports for this site, side by side.
  *
- * Volume is never added up: the grains differ and Search Console drops
+ * Volume is never added up here: the grains differ and Search Console drops
  * anonymised queries entirely. What survives comparison is which engine sees a
  * query at all, and where each one ranks it.
  */
@@ -222,44 +179,18 @@ export async function getEngineComparison(
 }> {
   const range = parseRange(days);
 
-  const [googleRows, bingWeeks] = await Promise.all([
-    getTopKeywords(siteId, days, 5000),
-    db.bingSearchWeekly.findMany({
-      where: {
-        siteId,
-        kind: "query",
-        weekEnding: { gte: range.start, lte: range.end },
-      },
-      select: {
-        key: true,
-        weekEnding: true,
-        clicks: true,
-        impressions: true,
-        avgImpressionPosition: true,
-        avgClickPosition: true,
-      },
-    }),
+  const [googleRows, bingRows] = await Promise.all([
+    getTopKeywords(siteId, days, 5000, ["google"]),
+    getBingWindowRows(siteId, "query", range.start, range.end),
   ]);
 
-  const bing = new Map<string, BingRow>();
-  for (const row of collapseWeeks(
-    bingWeeks.map((row) => ({
-      key: row.key,
-      weekEnding: row.weekEnding.toISOString().slice(0, 10),
-      clicks: row.clicks,
-      impressions: row.impressions,
-      avgImpressionPosition: row.avgImpressionPosition,
-      avgClickPosition: row.avgClickPosition,
-    }))
-  )) {
-    bing.set(normaliseQuery(row.key), row);
-  }
+  const bing = new Map(bingRows.map((row) => [normaliseQueryKey(row.key), row]));
 
   const rows: EngineRow[] = [];
   const counts = { both: 0, google: 0, bing: 0 };
 
   for (const google of googleRows) {
-    const key = normaliseQuery(google.query);
+    const key = normaliseQueryKey(google.query);
     const match = bing.get(key);
     if (match) bing.delete(key);
 
