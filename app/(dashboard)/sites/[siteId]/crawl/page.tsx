@@ -129,8 +129,10 @@ export default async function CrawlPage({ params }: Props) {
                     Bing crawler
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    bingbot over {bingCrawl.days} days · index count as of{" "}
-                    {bingCrawl.latestDate}. Our crawl found {latest.pagesFound}{" "}
+                    bingbot fetched {bingCrawl.crawledPages.toLocaleString()}{" "}
+                    pages over {bingCrawl.days} days. Statuses are Bing&apos;s
+                    running count of known URLs on {bingCrawl.latestDate}, not
+                    per-day totals. Our own crawl found {latest.pagesFound}{" "}
                     pages.
                   </p>
                 </div>
@@ -142,11 +144,11 @@ export default async function CrawlPage({ params }: Props) {
                 </Link>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <ScoreCard label="In index" value={bingCrawl.inIndex.toLocaleString()} hint="Bing" />
-                <ScoreCard label="Crawled" value={bingCrawl.crawledPages.toLocaleString()} hint={`${bingCrawl.days}d`} />
-                <ScoreCard label="301" value={bingCrawl.code301.toLocaleString()} hint="redirects" tone={bingCrawl.code301 > 0 ? "mid" : undefined} />
-                <ScoreCard label="4xx" value={bingCrawl.code4xx.toLocaleString()} hint="not found" tone={bingCrawl.code4xx > 0 ? "bad" : undefined} />
-                <ScoreCard label="5xx" value={bingCrawl.code5xx.toLocaleString()} hint="server" tone={bingCrawl.code5xx > 0 ? "bad" : undefined} />
+                <ScoreCard label="In index" value={bingCrawl.inIndex.toLocaleString()} hint={formatMove(bingCrawl.changes.inIndex)} />
+                <ScoreCard label="Crawled" value={bingCrawl.crawledPages.toLocaleString()} hint={`${bingCrawl.days}d total`} />
+                <ScoreCard label="Known 301" value={bingCrawl.code301.toLocaleString()} hint={formatMove(bingCrawl.changes.code301)} tone={bingCrawl.code301 > 0 ? "mid" : undefined} />
+                <ScoreCard label="Known 4xx" value={bingCrawl.code4xx.toLocaleString()} hint={formatMove(bingCrawl.changes.code4xx)} tone={bingCrawl.code4xx > 0 ? "bad" : undefined} />
+                <ScoreCard label="Known 5xx" value={bingCrawl.code5xx.toLocaleString()} hint={formatMove(bingCrawl.changes.code5xx)} tone={bingCrawl.code5xx > 0 ? "bad" : undefined} />
                 <ScoreCard label="Blocked" value={bingCrawl.blockedByRobots.toLocaleString()} hint="robots.txt" />
               </div>
             </div>
@@ -231,6 +233,12 @@ export default async function CrawlPage({ params }: Props) {
       )}
     </div>
   );
+}
+
+/** Movement of a snapshot counter across the window, for the card hint. */
+function formatMove(change: number): string {
+  if (change === 0) return "no change";
+  return `${change > 0 ? "+" : ""}${change.toLocaleString()} in window`;
 }
 
 function ScoreCard({

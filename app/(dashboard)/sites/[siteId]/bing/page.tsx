@@ -107,19 +107,20 @@ export default async function BingPage({ params }: Props) {
                   Bing crawler
                 </h3>
                 <p className="text-atom-caption text-muted-foreground">
-                  What bingbot actually fetched over {crawl.days} days · index
-                  count as of {crawl.latestDate}. Search Console has no
+                  Pages fetched over {crawl.days} days; every status is Bing's
+                  running count of known URLs on {crawl.latestDate}, with the
+                  move since {crawl.firstDate}. Search Console has no
                   equivalent API.
                 </p>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-              <MiniStat label="In index" value={crawl.inIndex} />
-              <MiniStat label="Crawled" value={crawl.crawledPages} />
-              <MiniStat label="2xx" value={crawl.code2xx} />
-              <MiniStat label="301" value={crawl.code301} tone={crawl.code301 > 0 ? "warn" : undefined} />
-              <MiniStat label="4xx" value={crawl.code4xx} tone={crawl.code4xx > 0 ? "danger" : undefined} />
-              <MiniStat label="5xx" value={crawl.code5xx} tone={crawl.code5xx > 0 ? "danger" : undefined} />
+              <MiniStat label="In index" value={crawl.inIndex} change={crawl.changes.inIndex} />
+              <MiniStat label={`Crawled · ${crawl.days}d`} value={crawl.crawledPages} />
+              <MiniStat label="Known 2xx" value={crawl.code2xx} />
+              <MiniStat label="Known 301" value={crawl.code301} change={crawl.changes.code301} tone={crawl.code301 > 0 ? "warn" : undefined} />
+              <MiniStat label="Known 4xx" value={crawl.code4xx} change={crawl.changes.code4xx} tone={crawl.code4xx > 0 ? "danger" : undefined} />
+              <MiniStat label="Known 5xx" value={crawl.code5xx} change={crawl.changes.code5xx} tone={crawl.code5xx > 0 ? "danger" : undefined} />
               <MiniStat label="Blocked" value={crawl.blockedByRobots} />
             </div>
           </div>
@@ -201,10 +202,12 @@ function Stat({
 function MiniStat({
   label,
   value,
+  change,
   tone,
 }: {
   label: string;
   value: number;
+  change?: number;
   tone?: "warn" | "danger";
 }) {
   return (
@@ -223,6 +226,12 @@ function MiniStat({
       >
         {value.toLocaleString()}
       </p>
+      {change !== undefined && change !== 0 && (
+        <p className="text-[10px] text-muted-foreground">
+          {change > 0 ? "+" : ""}
+          {change.toLocaleString()} in window
+        </p>
+      )}
     </div>
   );
 }

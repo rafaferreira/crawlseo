@@ -154,7 +154,15 @@ export async function getBingTopRows(
   ).slice(0, limit);
 }
 
-/** Bing's crawler stats. Search Console exposes no equivalent through its API. */
+/**
+ * Bing's crawler stats. Search Console exposes no equivalent through its API.
+ *
+ * Only `crawledPages` is a per-day count. Every status field is a running
+ * snapshot of the URLs Bing knows in that state: measured on a 29-page site,
+ * code2xx sat at ~4,238 on every single day of the window. Adding those up
+ * would multiply the truth by the number of days, so the snapshot fields
+ * report their latest value plus how much they moved across the window.
+ */
 export async function getBingCrawlSummary(siteId: string, days = 28) {
   const range = parseRange(days);
   const rows = await db.bingDaily.findMany({
@@ -168,23 +176,33 @@ export async function getBingCrawlSummary(siteId: string, days = 28) {
 
   if (rows.length === 0) return null;
 
+  const first = rows[0];
   const latest = rows[rows.length - 1];
-  const sum = (pick: (row: (typeof rows)[number]) => number | null) =>
-    rows.reduce((total, row) => total + (pick(row) ?? 0), 0);
+  const moved = (pick: (row: (typeof rows)[number]) => number | null) =>
+    (pick(latest) ?? 0) - (pick(first) ?? 0);
 
   return {
+    firstDate: first.date.toISOString().slice(0, 10),
     latestDate: latest.date.toISOString().slice(0, 10),
+    days: rows.length,
+    /** Summed: this one really is a daily count. */
+    crawledPages: rows.reduce((total, row) => total + (row.crawledPages ?? 0), 0),
+    /** Latest snapshot of URLs Bing knows in each state. */
     inIndex: latest.inIndex ?? 0,
     inLinks: latest.inLinks ?? 0,
-    crawledPages: sum((row) => row.crawledPages),
-    code2xx: sum((row) => row.code2xx),
-    code301: sum((row) => row.code301),
-    code302: sum((row) => row.code302),
-    code4xx: sum((row) => row.code4xx),
-    code5xx: sum((row) => row.code5xx),
-    blockedByRobots: sum((row) => row.blockedByRobots),
-    crawlErrors: sum((row) => row.crawlErrors),
-    days: rows.length,
+    code2xx: latest.code2xx ?? 0,
+    code301: latest.code301 ?? 0,
+    code302: latest.code302 ?? 0,
+    code4xx: latest.code4xx ?? 0,
+    code5xx: latest.code5xx ?? 0,
+    blockedByRobots: latest.blockedByRobots ?? 0,
+    crawlErrors: latest.crawlErrors ?? 0,
+    changes: {
+      inIndex: moved((row) => row.inIndex),
+      code301: moved((row) => row.code301),
+      code4xx: moved((row) => row.code4xx),
+      code5xx: moved((row) => row.code5xx),
+    },
   };
 }
 
