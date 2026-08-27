@@ -237,6 +237,10 @@ source added together unless `?source=` narrows it.
 - **`POST /api/sites/<id>/sync` is the sync entry point**, and syncs every
   connected source. `POST /api/gsc/sync` still works and still syncs Search
   Console only.
+- **`mcp/tools.ts` was removed.** It declared the MCP tool list a second time
+  and was imported by nothing; `mcp/server.ts` has always been the source of
+  truth. The MCP read tools now take an optional `sources` argument and reject
+  a non-positive `days`.
 - **Search Console rows are aggregated per query and date before being
   stored.** Previously the device, country and page slices of one query-day
   overwrote each other and only the last survived, so query-level clicks were
